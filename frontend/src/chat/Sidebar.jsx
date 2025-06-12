@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
-import { Menu, Search, X, UserCircle, Users, Settings, Bell, Edit, LogOut } from 'lucide-react';
+import {
+  Search, LogOut, Users
+} from 'lucide-react';
 import ProfileEditor from '../profile/ProfileEditor';
 import CreateGroupModal from '../groups/CreateGroupModal';
 import UserProfile from '../profile/UserProfile';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import ProfilePicture from '../assets/ProfileConnect.jpg';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -21,6 +24,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
+
   const { currentUser, logout } = useAuth();
   const { onlineUsers } = useSocket();
   const navigate = useNavigate();
@@ -34,13 +38,13 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
     try {
       const res = await fetch(`${API_URL}/users/contacts/all`, {
         headers: {
-          'Authorization': `Bearer ${currentUser.token}`
-        }
+          Authorization: `Bearer ${currentUser.token}`,
+        },
       });
       if (!res.ok) throw new Error('Failed to fetch contacts');
       const data = await res.json();
       setContacts(data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load contacts');
     }
   };
@@ -49,13 +53,13 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
     try {
       const res = await fetch(`${API_URL}/groups`, {
         headers: {
-          'Authorization': `Bearer ${currentUser.token}`
-        }
+          Authorization: `Bearer ${currentUser.token}`,
+        },
       });
       if (!res.ok) throw new Error('Failed to fetch groups');
       const data = await res.json();
       setGroups(data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load groups');
     }
   };
@@ -67,14 +71,14 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
     try {
       const res = await fetch(`${API_URL}/users/search/${searchTerm}`, {
         headers: {
-          'Authorization': `Bearer ${currentUser.token}`
-        }
+          Authorization: `Bearer ${currentUser.token}`,
+        },
       });
       if (!res.ok) throw new Error('Search failed');
       const data = await res.json();
       setSearchResults(data);
       setActiveTab('search');
-    } catch (error) {
+    } catch {
       toast.error('Search failed');
     } finally {
       setIsSearching(false);
@@ -86,14 +90,14 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
       const res = await fetch(`${API_URL}/users/contacts/add/${userId}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${currentUser.token}`
-        }
+          Authorization: `Bearer ${currentUser.token}`,
+        },
       });
       if (!res.ok) throw new Error('Failed to add contact');
       toast.success('Contact added');
       fetchContacts();
       setActiveTab('chats');
-    } catch (error) {
+    } catch {
       toast.error('Failed to add contact');
     }
   };
@@ -108,11 +112,6 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
     setIsUserProfileOpen(true);
   };
 
-  const handleGroupCreated = () => {
-    fetchGroups();
-    setActiveTab('groups');
-  };
-
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -120,107 +119,133 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
 
   return (
     <>
-      <div style={{ backgroundColor: '#000', color: '#fff', height: '100%', borderRight: '1px solid #333' }}>
-        <div style={{ padding: '1rem', borderBottom: '1px solid #333' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <div onClick={() => setIsProfileOpen(true)} style={{ cursor: 'pointer' }}>
+      <div className="h-full flex flex-col bg-black text-white border-r border-gray-800">
+        {/* Header */}
+        <div className="p-4 border-b border-gray-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setIsProfileOpen(true)}>
               <img
-                src={currentUser.profilePicture || ''}
+                src={currentUser.profilePicture || ProfilePicture}
                 alt="Avatar"
-                style={{ borderRadius: '50%', width: 40, height: 40, border: '2px solid blue' }}
+                className="w-10 h-10 rounded-full border-2 border-blue-500"
               />
-              <div>{currentUser.username}</div>
+              <span className="font-semibold">{currentUser.username}</span>
             </div>
-            <div>
-              <button onClick={handleLogout} title="Logout"><LogOut size={20} color="white" /></button>
-            </div>
+            <button onClick={handleLogout}>
+              <LogOut size={20} />
+            </button>
           </div>
-          <form onSubmit={handleSearch} style={{ marginTop: '1rem', display: 'flex' }}>
+          <form onSubmit={handleSearch} className="mt-4 flex space-x-2">
             <input
               type="text"
               placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ flex: 1, padding: '0.5rem', borderRadius: 4 }}
+              className="flex-1 px-3 py-1.5 rounded bg-gray-900 text-white border border-gray-700"
             />
-            <button type="submit" disabled={isSearching} style={{ marginLeft: '0.5rem' }}>
-              {isSearching ? 'Searching...' : <Search size={16} />}
+            <button
+              type="submit"
+              disabled={isSearching}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded"
+            >
+              {isSearching ? '...' : <Search size={16} />}
             </button>
           </form>
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', justifyContent: 'space-around', backgroundColor: '#111' }}>
-          <button onClick={() => setActiveTab('chats')} style={{ flex: 1, padding: '0.5rem' }}>Chats</button>
-          <button onClick={() => setActiveTab('groups')} style={{ flex: 1, padding: '0.5rem' }}>Groups</button>
-          <button onClick={() => setActiveTab('search')} style={{ flex: 1, padding: '0.5rem' }}>Search</button>
+        <div className="flex bg-gray-900 text-sm font-medium">
+          {['chats', 'groups', 'search'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-2 transition ${
+                activeTab === tab ? 'bg-blue-700' : 'hover:bg-gray-800'
+              }`}
+            >
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
         </div>
 
-        {/* Tab Content */}
-        <div style={{ overflowY: 'auto', height: 'calc(100% - 200px)', padding: '0.5rem' }}>
-          {activeTab === 'chats' && contacts.map(contact => (
-            <div
-              key={contact._id}
-              onClick={() => selectChat(contact)}
-              style={{
-                display: 'flex', alignItems: 'center', padding: '0.5rem',
-                backgroundColor: selectedChat?._id === contact._id ? '#1d4ed8' : 'transparent',
-                cursor: 'pointer'
-              }}
-            >
-              <img src={contact.profilePicture || ''} alt="Avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-              <div style={{ marginLeft: '1rem' }}>
-                <div>{contact.username}</div>
-                <small>{contact.bio || 'No bio available'}</small>
-              </div>
-            </div>
-          ))}
-          {activeTab === 'groups' && groups.map(group => (
-            <div
-              key={group._id}
-              onClick={() => selectChat(group, true)}
-              style={{
-                display: 'flex', alignItems: 'center', padding: '0.5rem',
-                backgroundColor: selectedChat?._id === group._id ? '#1d4ed8' : 'transparent',
-                cursor: 'pointer'
-              }}
-            >
-              <img src={group.picture || ''} alt="Group" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-              <div style={{ marginLeft: '1rem' }}>
-                <div>{group.name}</div>
-                <small>{group.description || 'No description'}</small>
-              </div>
-            </div>
-          ))}
-          {activeTab === 'search' && searchResults.map(user => {
-            const isContact = contacts.some(contact => contact._id === user._id);
-            return (
-              <div key={user._id} style={{ display: 'flex', alignItems: 'center', padding: '0.5rem' }}>
-                <img src={user.profilePicture || ''} alt="User" style={{ width: 32, height: 32, borderRadius: '50%' }} />
-                <div style={{ marginLeft: '1rem', flex: 1 }}>
-                  <div>{user.username}</div>
-                  <small>{user.bio || 'No bio available'}</small>
+        {/* List Content */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+          {activeTab === 'chats' &&
+            contacts.map((contact) => (
+              <div
+                key={contact._id}
+                onClick={() => selectChat(contact)}
+                className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-gray-800 ${
+                  selectedChat?._id === contact._id ? 'bg-blue-800' : ''
+                }`}
+              >
+                <img src={ProfilePicture} className="w-8 h-8 rounded-full" />
+                <div>
+                  <p>{contact.username}</p>
+                  <p className="text-xs text-gray-400">{contact.bio || 'No bio available'}</p>
                 </div>
-                <button onClick={() => isContact ? selectChat(user) : addContact(user._id)}>
-                  {isContact ? 'Chat' : 'Add'}
-                </button>
               </div>
-            );
-          })}
+            ))}
+
+          {activeTab === 'groups' &&
+            groups.map((group) => (
+              <div
+                key={group._id}
+                onClick={() => selectChat(group, true)}
+                className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-gray-800 ${
+                  selectedChat?._id === group._id ? 'bg-blue-800' : ''
+                }`}
+              >
+                <img src={group.picture || ''} className="w-8 h-8 rounded-full" />
+                <div>
+                  <p>{group.name}</p>
+                  <p className="text-xs text-gray-400">{group.description || 'No description'}</p>
+                </div>
+              </div>
+            ))}
+
+          {activeTab === 'search' &&
+            searchResults.map((user) => {
+              const isContact = contacts.some((c) => c._id === user._id);
+              return (
+                <div key={user._id} className="flex items-center gap-3 p-2 rounded bg-gray-800">
+                  <img src={user.profilePicture || ''} className="w-8 h-8 rounded-full" />
+                  <div className="flex-1">
+                    <p>{user.username}</p>
+                    <p className="text-xs text-gray-400">{user.bio || 'No bio available'}</p>
+                  </div>
+                  <button
+                    onClick={() => (isContact ? selectChat(user) : addContact(user._id))}
+                    className="px-2 py-1 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    {isContact ? 'Chat' : 'Add'}
+                  </button>
+                </div>
+              );
+            })}
         </div>
 
-        <div style={{ padding: '1rem', borderTop: '1px solid #333' }}>
+        {/* Fixed Footer */}
+        <div className="p-3 border-t border-gray-800">
           <button
             onClick={() => setIsCreateGroupOpen(true)}
-            style={{ width: '100%', padding: '0.5rem', backgroundColor: '#3b82f6', color: 'white' }}
+            className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Users size={16} /> Create Group
           </button>
         </div>
       </div>
 
+      {/* Modals */}
       <ProfileEditor isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
-      <CreateGroupModal isOpen={isCreateGroupOpen} onClose={() => setIsCreateGroupOpen(false)} onGroupCreated={handleGroupCreated} />
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        onGroupCreated={() => {
+          fetchGroups();
+          setActiveTab('groups');
+        }}
+      />
       <UserProfile
         user={selectedUser}
         isOpen={isUserProfileOpen}

@@ -12,247 +12,212 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
+
   const { currentUser } = useAuth();
   const { socket, onlineUsers, typingUsers, sendMessage, sendTyping, sendStopTyping } = useSocket();
   const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   useEffect(() => {
-    if (socket) {
-      socket.on('receiveMessage', newMsg => {
-        if (
-          selectedChat && (
-            (newMsg.sender === selectedChat._id && newMsg.receiver === currentUser._id) ||
-            (newMsg.sender === currentUser._id && newMsg.receiver === selectedChat._id) ||
-            (selectedChat.isGroup && newMsg.group === selectedChat._id)
-          )
-        ) {
-          setMessages(prev => [...prev, newMsg]);
-        }
-      });
-      return () => {
-        socket.off('receiveMessage');
-      };
-    }
+    if (!socket) return;
+    socket.on('receiveMessage', newMsg => {
+      if (!selectedChat) return;
+      const isRelevant = selectedChat.isGroup
+        ? newMsg.group === selectedChat._id
+        : (newMsg.sender === selectedChat._id && newMsg.receiver === currentUser._id) ||
+          (newMsg.sender === currentUser._id && newMsg.receiver === selectedChat._id);
+      if (isRelevant) setMessages(prev => [...prev, newMsg]);
+    });
+    return () => socket.off('receiveMessage');
   }, [socket, selectedChat, currentUser]);
 
   useEffect(() => {
-    if (selectedChat) {
-      const fetchMessages = async () => {
-        try {
-          const endpoint = selectedChat.isGroup
-            ? `${API_URL}/messages/group/${selectedChat._id}`
-            : `${API_URL}/messages/${selectedChat._id}`;
+    if (!selectedChat) return;
+    (async () => {
+      try {
+        const url = selectedChat.isGroup
+          ? `${API_URL}/messages/group/${selectedChat._id}`
+          : `${API_URL}/messages/${selectedChat._id}`;
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${currentUser.token}` }
+        });
+        if (!res.ok) throw new Error('Failed to fetch messages');
+        const data = await res.json();
+        setMessages(data);
 
-          const res = await fetch(endpoint, {
-            headers: {
-              'Authorization': `Bearer ${currentUser.token}`
-            }
+        if (!selectedChat.isGroup) {
+          await fetch(`${API_URL}/messages/read/${selectedChat._id}`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${currentUser.token}` }
           });
-
-          if (!res.ok) throw new Error('Failed to fetch messages');
-          const data = await res.json();
-          setMessages(data);
-
-          if (!selectedChat.isGroup) {
-            await fetch(`${API_URL}/messages/read/${selectedChat._id}`, {
-              method: 'PUT',
-              headers: { 'Authorization': `Bearer ${currentUser.token}` }
-            });
-          }
-
-          if (selectedChat.isGroup && socket) {
-            socket.emit('joinGroup', { groupId: selectedChat._id });
-          }
-        } catch (error) {
-          console.error('Error fetching messages:', error);
-          toast.error('Failed to load messages');
+        } else {
+          socket.emit('joinGroup', { groupId: selectedChat._id });
         }
-      };
+      } catch (err) {
+        console.error(err);
+        toast.error('Could not load chat.');
+      }
+    })();
 
-      fetchMessages();
-
-      return () => {
-        if (selectedChat.isGroup && socket) {
-          socket.emit('leaveGroup', { groupId: selectedChat._id });
-        }
-      };
-    }
+    return () => {
+      if (selectedChat.isGroup) socket.emit('leaveGroup', { groupId: selectedChat._id });
+    };
   }, [selectedChat, currentUser, socket]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  useEffect(scrollToBottom, [messages]);
 
   const handleTyping = () => {
+    if (!selectedChat) return;
     if (!isTyping) {
+      sendTyping({
+        senderId: currentUser._id,
+        receiverId: selectedChat.isGroup ? null : selectedChat._id,
+        groupId: selectedChat.isGroup ? selectedChat._id : null
+      });
       setIsTyping(true);
-      if (selectedChat) {
-        sendTyping({
-          senderId: currentUser._id,
-          receiverId: selectedChat.isGroup ? null : selectedChat._id,
-          groupId: selectedChat.isGroup ? selectedChat._id : null
-        });
-      }
     }
-
-    if (typingTimeout) clearTimeout(typingTimeout);
-
+    clearTimeout(typingTimeout);
     const timeout = setTimeout(() => {
+      sendStopTyping({
+        senderId: currentUser._id,
+        receiverId: selectedChat.isGroup ? null : selectedChat._id,
+        groupId: selectedChat.isGroup ? selectedChat._id : null
+      });
       setIsTyping(false);
-      if (selectedChat) {
-        sendStopTyping({
-          senderId: currentUser._id,
-          receiverId: selectedChat.isGroup ? null : selectedChat._id,
-          groupId: selectedChat.isGroup ? selectedChat._id : null
-        });
-      }
     }, 1000);
-
     setTypingTimeout(timeout);
   };
 
-  const handleSendMessage = (e) => {
+  const handleSend = e => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    const trimmed = newMessage.trim();
+    if (!trimmed) return;
 
-    const messageData = {
+    const payload = {
       senderId: currentUser._id,
-      text: newMessage,
-      ...(selectedChat.isGroup
-        ? { groupId: selectedChat._id }
-        : { receiverId: selectedChat._id })
+      text: trimmed,
+      ...(selectedChat.isGroup ? { groupId: selectedChat._id } : { receiverId: selectedChat._id })
     };
-
-    sendMessage(messageData);
+    sendMessage(payload);
     setNewMessage('');
-
-    if (isTyping) {
-      setIsTyping(false);
-      if (selectedChat) {
-        sendStopTyping({
-          senderId: currentUser._id,
-          receiverId: selectedChat.isGroup ? null : selectedChat._id,
-          groupId: selectedChat.isGroup ? selectedChat._id : null
-        });
-      }
-    }
+    if (isTyping) handleTyping();
   };
 
-  const handleEmojiSelect = (emoji) => {
-    setNewMessage(prev => prev + emoji);
+  const formatTime = ts => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatDate = ts => {
+    const d = new Date(ts), n = new Date();
+    if (d.toDateString() === n.toDateString()) return 'Today';
+    const y = new Date(n).setDate(n.getDate() - 1);
+    if (d.toDateString() === new Date(y).toDateString()) return 'Yesterday';
+    return d.toLocaleDateString();
   };
 
-  const isReceiverTyping = selectedChat
-    ? typingUsers[selectedChat.isGroup ? `group-${selectedChat._id}` : selectedChat._id]
-    : false;
-
-  const formatTime = (timestamp) => new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  const formatDate = (timestamp) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    const isYesterday = new Date(new Date().setDate(now.getDate() - 1)).toDateString() === date.toDateString();
-    if (isToday) return 'Today';
-    if (isYesterday) return 'Yesterday';
-    return date.toLocaleDateString();
-  };
-
-  const groupedMessages = messages.reduce((acc, msg) => {
-    const dateKey = formatDate(msg.createdAt);
-    if (!acc[dateKey]) acc[dateKey] = [];
-    acc[dateKey].push(msg);
+  const grouped = messages.reduce((acc, m) => {
+    const key = formatDate(m.createdAt);
+    (acc[key] = acc[key] || []).push(m);
     return acc;
   }, {});
 
-  if (!selectedChat) {
-    return (
-      <div style={{ textAlign: 'center', padding: 20 }}>
-        <h2>Welcome to Connect</h2>
-        <p>Select a conversation or search for someone to start chatting.</p>
-        <button onClick={openSidebar}>View Conversations</button>
-      </div>
-    );
-  }
+  if (!selectedChat) return (
+    <div className="flex flex-col items-center justify-center h-full text-gray-600">
+      <h2 className="text-2xl font-bold tracking-wide">Welcome to Connect</h2>
+      <p className="mt-1 text-sm text-gray-500">Select a conversation to start messaging</p>
+      <button
+        className="mt-5 px-4 py-2 border border-black text-black rounded hover:bg-black hover:text-white transition"
+        onClick={openSidebar}
+      >
+        View Conversations
+      </button>
+    </div>
+  );
+
+  const isReceiverTyping = selectedChat.isGroup
+    ? typingUsers[`group-${selectedChat._id}`]
+    : typingUsers[selectedChat._id];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="flex flex-col h-full bg-gray-300">
       {/* Header */}
-      <div style={{ padding: 10, borderBottom: '1px solid #ccc', display: 'flex', alignItems: 'center' }}>
-        <button onClick={openSidebar}>☰</button>
-        <div onClick={() => !selectedChat.isGroup && openUserProfile?.(selectedChat)} style={{ marginLeft: 10 }}>
-          <strong>{selectedChat.username || selectedChat.name}</strong><br />
-          <small>{selectedChat.isGroup ? `${selectedChat.members?.length} members` : (onlineUsers.includes(selectedChat._id) ? 'Online' : 'Offline')}</small>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-black">
+        <button onClick={openSidebar} className="text-black hover:opacity-70">
+          <Menu size={22} />
+        </button>
+        <div
+          onClick={() => !selectedChat.isGroup && openUserProfile?.(selectedChat)}
+          className="cursor-pointer text-center"
+        >
+          <h3 className="text-lg font-semibold">{selectedChat.username || selectedChat.name}</h3>
+          <p className="text-xs text-gray-500">
+            {selectedChat.isGroup
+              ? `${selectedChat.members?.length || 0} members`
+              : onlineUsers.includes(selectedChat._id) ? 'Online' : 'Offline'}
+          </p>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div>
           {selectedChat.isGroup ? (
-            <span style={{ padding: '4px 10px', background: '#ddd', borderRadius: 5 }}>Group</span>
+            <span className="text-xs border px-2 py-1 rounded-full text-gray-700">Group</span>
           ) : (
-            <button onClick={() => openUserProfile?.(selectedChat)}>ℹ</button>
+            <button onClick={() => openUserProfile?.(selectedChat)} className="text-black hover:opacity-70">
+              <Info size={20} />
+            </button>
           )}
         </div>
       </div>
 
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
-        {Object.entries(groupedMessages).map(([date, msgs]) => (
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scrollbar-thin scrollbar-thumb-gray-400">
+        {Object.entries(grouped).map(([date, msgs]) => (
           <div key={date}>
-            <div style={{ textAlign: 'center', margin: '10px 0' }}>
-              <small>{date}</small>
-            </div>
-            {msgs.map((msg, i) => {
+            <div className="text-center text-sm text-gray-500 mb-2">{date}</div>
+            {msgs.map((msg, idx) => {
               const isSender = msg.sender === currentUser._id;
               return (
-                <div key={i} style={{ display: 'flex', justifyContent: isSender ? 'flex-end' : 'flex-start', marginBottom: 6 }}>
-                  <div style={{
-                    maxWidth: '60%',
-                    padding: 8,
-                    borderRadius: 12,
-                    background: isSender ? '#007bff' : '#ccc',
-                    color: isSender ? 'white' : 'black'
-                  }}>
+                <div key={idx} className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[70%] px-4 py-2 rounded-2xl border
+                    ${isSender ? 'bg-black text-white border-black' : 'bg-white text-black border-gray-300'}`}>
                     {selectedChat.isGroup && !isSender && (
-                      <div style={{ fontSize: 10, fontWeight: 'bold' }}>{msg.sender.username || 'User'}</div>
+                      <div className="text-xs font-semibold text-gray-600 mb-1">
+                        {msg.sender.username || 'User'}
+                      </div>
                     )}
-                    <div>{msg.text}</div>
-                    <div style={{ fontSize: 9, textAlign: 'right' }}>{formatTime(msg.createdAt)}</div>
+                    <p className="whitespace-pre-wrap">{msg.text}</p>
+                    <div className="text-[10px] text-right mt-1 text-gray-400">{formatTime(msg.createdAt)}</div>
                   </div>
                 </div>
               );
             })}
           </div>
         ))}
-
-        {/* Typing */}
         {isReceiverTyping && (
-          <div style={{ fontStyle: 'italic', fontSize: 12, color: '#666' }}>Typing...</div>
+          <div className="italic text-sm text-gray-400">Typing...</div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSendMessage} style={{ padding: 10, borderTop: '1px solid #ccc', display: 'flex', alignItems: 'center' }}>
+      <form onSubmit={handleSend} className="flex items-center gap-2 px-4 py-2 border-t border-black">
         <textarea
+          rows={1}
           value={newMessage}
-          onChange={(e) => {
+          onChange={e => {
             setNewMessage(e.target.value);
             handleTyping();
           }}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
-              handleSendMessage(e);
+              handleSend(e);
             }
           }}
-          placeholder="Type a message..."
-          style={{ flex: 1, resize: 'none', padding: 8, borderRadius: 5 }}
+          placeholder="Type your message..."
+          className="flex-1 resize-none px-3 py-2 border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
         />
-        <EmojiPicker onEmojiSelect={handleEmojiSelect} />
-        <button type="submit" disabled={!newMessage.trim()} style={{ marginLeft: 10 }}>
+        <EmojiPicker onEmojiSelect={emoji => setNewMessage(prev => prev + emoji)} />
+        <button
+          type="submit"
+          disabled={!newMessage.trim()}
+          className="p-2 bg-black text-white rounded-full disabled:opacity-50 hover:bg-gray-900 transition"
+        >
           <Send size={20} />
         </button>
       </form>

@@ -9,6 +9,8 @@ import {
   UserPlus,
   List
 } from 'lucide-react';
+import ProfilePicture from '../assets/ProfileConnect.jpg'; 
+
 
 const UserProfile = ({ user, isOpen, onClose, onStartChat }) => {
   const { onlineUsers } = useSocket();
@@ -43,7 +45,7 @@ const UserProfile = ({ user, isOpen, onClose, onStartChat }) => {
           {/* Left: Avatar & Status */}
           <div className="flex flex-col items-center min-w-[220px]">
             <img
-              src={user.profilePicture}
+              src={ ProfilePicture || user.profilePicture}
               alt={user.username}
               className="w-28 h-28 rounded-full border-4 border-blue-500 dark:border-blue-300 shadow-lg mb-3 object-cover"
             />
