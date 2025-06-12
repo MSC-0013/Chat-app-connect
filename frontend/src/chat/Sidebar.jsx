@@ -1,29 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../context/SocketContext';
-import {
-  Search, LogOut, Users
-} from 'lucide-react';
-import ProfileEditor from '../profile/ProfileEditor';
-import CreateGroupModal from '../groups/CreateGroupModal';
-import UserProfile from '../profile/UserProfile';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
-import ProfilePicture from '../assets/ProfileConnect.jpg';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../context/SocketContext";
+import { Search, LogOut, Users } from "lucide-react";
+import ProfileEditor from "../profile/ProfileEditor";
+import CreateGroupModal from "../groups/CreateGroupModal";
+import UserProfile from "../profile/UserProfile";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import ProfilePicture from "../assets/ProfileConnect.jpg";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
-  const [activeTab, setActiveTab] = useState('chats');
+  const [activeTab, setActiveTab] = useState("chats");
   const [contacts, setContacts] = useState([]);
   const [groups, setGroups] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const { currentUser, logout } = useAuth();
   const { onlineUsers } = useSocket();
@@ -41,11 +40,11 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
           Authorization: `Bearer ${currentUser.token}`,
         },
       });
-      if (!res.ok) throw new Error('Failed to fetch contacts');
+      if (!res.ok) throw new Error("Failed to fetch contacts");
       const data = await res.json();
       setContacts(data);
     } catch {
-      toast.error('Failed to load contacts');
+      toast.error("Failed to load contacts");
     }
   };
 
@@ -56,11 +55,11 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
           Authorization: `Bearer ${currentUser.token}`,
         },
       });
-      if (!res.ok) throw new Error('Failed to fetch groups');
+      if (!res.ok) throw new Error("Failed to fetch groups");
       const data = await res.json();
       setGroups(data);
     } catch {
-      toast.error('Failed to load groups');
+      toast.error("Failed to load groups");
     }
   };
 
@@ -74,12 +73,12 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
           Authorization: `Bearer ${currentUser.token}`,
         },
       });
-      if (!res.ok) throw new Error('Search failed');
+      if (!res.ok) throw new Error("Search failed");
       const data = await res.json();
       setSearchResults(data);
-      setActiveTab('search');
+      setActiveTab("search");
     } catch {
-      toast.error('Search failed');
+      toast.error("Search failed");
     } finally {
       setIsSearching(false);
     }
@@ -88,17 +87,17 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
   const addContact = async (userId) => {
     try {
       const res = await fetch(`${API_URL}/users/contacts/add/${userId}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${currentUser.token}`,
         },
       });
-      if (!res.ok) throw new Error('Failed to add contact');
-      toast.success('Contact added');
+      if (!res.ok) throw new Error("Failed to add contact");
+      toast.success("Contact added");
       fetchContacts();
-      setActiveTab('chats');
+      setActiveTab("chats");
     } catch {
-      toast.error('Failed to add contact');
+      toast.error("Failed to add contact");
     }
   };
 
@@ -114,7 +113,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate("/");
   };
 
   return (
@@ -123,7 +122,10 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
         {/* Header */}
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setIsProfileOpen(true)}>
+            <div
+              className="flex items-center space-x-3 cursor-pointer"
+              onClick={() => setIsProfileOpen(true)}
+            >
               <img
                 src={currentUser.profilePicture || ProfilePicture}
                 alt="Avatar"
@@ -131,7 +133,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
               />
               <span className="font-semibold">{currentUser.username}</span>
             </div>
-            <button onClick={handleLogout}>
+            <button onClick={() => setConfirmLogout(true)}>
               <LogOut size={20} />
             </button>
           </div>
@@ -148,19 +150,19 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
               disabled={isSearching}
               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded"
             >
-              {isSearching ? '...' : <Search size={16} />}
+              {isSearching ? "..." : <Search size={16} />}
             </button>
           </form>
         </div>
 
         {/* Tabs */}
         <div className="flex bg-gray-900 text-sm font-medium">
-          {['chats', 'groups', 'search'].map((tab) => (
+          {["chats", "groups", "search"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 py-2 transition ${
-                activeTab === tab ? 'bg-blue-700' : 'hover:bg-gray-800'
+                activeTab === tab ? "bg-blue-700" : "hover:bg-gray-800"
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -170,55 +172,72 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
 
         {/* List Content */}
         <div className="flex-1 overflow-y-auto p-2 space-y-2">
-          {activeTab === 'chats' &&
+          {activeTab === "chats" &&
             contacts.map((contact) => (
               <div
                 key={contact._id}
                 onClick={() => selectChat(contact)}
                 className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-gray-800 ${
-                  selectedChat?._id === contact._id ? 'bg-blue-800' : ''
+                  selectedChat?._id === contact._id ? "bg-blue-800" : ""
                 }`}
               >
                 <img src={ProfilePicture} className="w-8 h-8 rounded-full" />
                 <div>
                   <p>{contact.username}</p>
-                  <p className="text-xs text-gray-400">{contact.bio || 'No bio available'}</p>
+                  <p className="text-xs text-gray-400">
+                    {contact.bio || "No bio available"}
+                  </p>
                 </div>
               </div>
             ))}
 
-          {activeTab === 'groups' &&
+          {activeTab === "groups" &&
             groups.map((group) => (
               <div
                 key={group._id}
                 onClick={() => selectChat(group, true)}
                 className={`flex items-center gap-3 p-2 rounded cursor-pointer hover:bg-gray-800 ${
-                  selectedChat?._id === group._id ? 'bg-blue-800' : ''
+                  selectedChat?._id === group._id ? "bg-blue-800" : ""
                 }`}
               >
-                <img src={group.picture || ''} className="w-8 h-8 rounded-full" />
+                <img
+                  src={group.picture || ""}
+                  className="w-8 h-8 rounded-full"
+                />
                 <div>
                   <p>{group.name}</p>
-                  <p className="text-xs text-gray-400">{group.description || 'No description'}</p>
+                  <p className="text-xs text-gray-400">
+                    {group.description || "No description"}
+                  </p>
                 </div>
               </div>
             ))}
 
-          {activeTab === 'search' &&
+          {activeTab === "search" &&
             searchResults.map((user) => {
               const isContact = contacts.some((c) => c._id === user._id);
               return (
-                <div key={user._id} className="flex items-center gap-3 p-2 rounded bg-gray-800">
-                  <img src={user.profilePicture || ''} className="w-8 h-8 rounded-full" />
+                <div
+                  key={user._id}
+                  className="flex items-center gap-3 p-2 rounded bg-gray-800"
+                >
+                  <img
+                    src={user.profilePicture || ""}
+                    className="w-8 h-8 rounded-full"
+                  />
                   <div className="flex-1">
                     <p>{user.username}</p>
-                    <p className="text-xs text-gray-400">{user.bio || 'No bio available'}</p>
+                    <p className="text-xs text-gray-400">
+                      {user.bio || "No bio available"}
+                    </p>
                   </div>
                   <button
-                    onClick={() => (isContact ? selectChat(user) : addContact(user._id))}
+                    onClick={() =>
+                      isContact ? selectChat(user) : addContact(user._id)
+                    }
                     className="px-2 py-1 text-sm rounded bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    {isContact ? 'Chat' : 'Add'}
+                    {isContact ? "Chat" : "Add"}
                   </button>
                 </div>
               );
@@ -237,13 +256,16 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
       </div>
 
       {/* Modals */}
-      <ProfileEditor isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
+      <ProfileEditor
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
       <CreateGroupModal
         isOpen={isCreateGroupOpen}
         onClose={() => setIsCreateGroupOpen(false)}
         onGroupCreated={() => {
           fetchGroups();
-          setActiveTab('groups');
+          setActiveTab("groups");
         }}
       />
       <UserProfile
@@ -255,6 +277,31 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
           setIsUserProfileOpen(false);
         }}
       />
+      {confirmLogout && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg text-white space-y-4 w-[90%] max-w-sm">
+            <h2 className="text-lg font-semibold">Confirm Logout</h2>
+            <p>Are you sure you want to logout?</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setConfirmLogout(false)}
+                className="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600"
+              >
+                No
+              </button>
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setConfirmLogout(false);
+                }}
+                className="px-4 py-2 bg-red-600 rounded hover:bg-red-700"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
