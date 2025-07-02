@@ -1,9 +1,8 @@
-
 import { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import axios from 'axios';
 
-// Update API_URL to be configurable from environment or fallback to a default
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export const AuthContext = createContext();
@@ -13,22 +12,18 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Check if user is logged in
+  // 🔐 Check if user is logged in on mount
   useEffect(() => {
     const checkLoggedIn = async () => {
       try {
         const storedUser = localStorage.getItem('user');
-        
         if (storedUser) {
           const user = JSON.parse(storedUser);
-          
-          // Verify token is still valid
           const res = await fetch(`${API_URL}/users/${user._id}`, {
             headers: {
               'Authorization': `Bearer ${user.token}`
             }
           });
-          
           if (res.ok) {
             setCurrentUser(user);
           } else {
@@ -42,42 +37,25 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     };
-    
     checkLoggedIn();
   }, []);
 
-  // Register user
+  // 📝 Register
   const register = async (userData) => {
     setLoading(true);
-    
     try {
-      console.log("Registering user with API URL:", API_URL);
       const res = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData)
       });
-      
       const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-      
-      // Save user to localStorage
+      if (!res.ok) throw new Error(data.message || 'Registration failed');
+
       localStorage.setItem('user', JSON.stringify(data));
-      
-      // Set current user
       setCurrentUser(data);
-      
-      // Show success toast
       toast.success('Registration successful!');
-      
-      // Redirect to home
       navigate('/chat');
-      
       return data;
     } catch (error) {
       toast.error(error.message || 'Registration failed');
@@ -87,38 +65,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login user
+  // 🔐 Login
   const login = async (credentials) => {
     setLoading(true);
-    
     try {
-      console.log("Logging in user with API URL:", API_URL);
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials)
       });
-      
       const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-      
-      // Save user to localStorage
+      if (!res.ok) throw new Error(data.message || 'Login failed');
+
       localStorage.setItem('user', JSON.stringify(data));
-      
-      // Set current user
       setCurrentUser(data);
-      
-      // Show success toast
       toast.success('Login successful!');
-      
-      // Redirect to home
       navigate('/');
-      
       return data;
     } catch (error) {
       toast.error(error.message || 'Login failed');
@@ -128,7 +90,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout user
+  // 🚪 Logout
   const logout = async () => {
     try {
       if (currentUser) {
@@ -144,21 +106,15 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      // Remove user from localStorage
       localStorage.removeItem('user');
-      
-      // Clear current user
       setCurrentUser(null);
-      
-      // Redirect to login
       navigate('/login');
     }
   };
 
-  // Update user profile
+  // 🛠 Update Profile (username, bio, etc.)
   const updateProfile = async (userData) => {
     setLoading(true);
-    
     try {
       const res = await fetch(`${API_URL}/users/${currentUser._id}`, {
         method: 'PUT',
@@ -168,23 +124,14 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify(userData)
       });
-      
+
       const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.message || 'Update failed');
-      }
-      
-      // Update user in localStorage
+      if (!res.ok) throw new Error(data.message || 'Update failed');
+
       const updatedUser = { ...currentUser, ...data };
       localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      // Update current user
       setCurrentUser(updatedUser);
-      
-      // Show success toast
       toast.success('Profile updated successfully!');
-      
       return data;
     } catch (error) {
       toast.error(error.message || 'Update failed');
@@ -194,25 +141,49 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 🖼 Upload Profile Image
+  const uploadProfileImage = async (imageFile) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", imageFile);
+
+      const res = await axios.post(`${API_URL}/users/upload-profile`, formData, {
+        headers: {
+          Authorization: `Bearer ${currentUser.token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      const updatedUser = res.data.user;
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      toast.success("Profile picture updated!");
+      return updatedUser;
+    } catch (error) {
+      toast.error("Image upload failed");
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       currentUser,
+      setCurrentUser,
       loading,
       register,
       login,
       logout,
-      updateProfile
+      updateProfile,
+      uploadProfileImage
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use auth context
+// ✅ Easy hook to use anywhere
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };

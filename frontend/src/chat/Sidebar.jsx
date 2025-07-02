@@ -24,13 +24,15 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, setCurrentUser } = useAuth();
   const { onlineUsers } = useSocket();
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchContacts();
-    fetchGroups();
+    if (currentUser && currentUser.token) {
+      fetchContacts();
+      fetchGroups();
+    }
   }, [currentUser]);
 
   const fetchContacts = async () => {
@@ -127,10 +129,17 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
               onClick={() => setIsProfileOpen(true)}
             >
               <img
-                src={currentUser.profilePicture || ProfilePicture}
+                src={
+                  currentUser.profilePicture
+                    ? `${API_URL.replace("/api", "")}${
+                        currentUser.profilePicture
+                      }`
+                    : ProfilePicture
+                }
                 alt="Avatar"
                 className="w-10 h-10 rounded-full border-2 border-blue-500"
               />
+
               <span className="font-semibold">{currentUser.username}</span>
             </div>
             <button onClick={() => setConfirmLogout(true)}>
@@ -171,7 +180,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
         </div>
 
         {/* List Content */}
-        <div className="flex-1 overflow-y-auto p-2 space-y-2">
+        <div className="flex-1 overflow-y-scroll p-2 space-y-2 invisible-scrollbar">
           {activeTab === "chats" &&
             contacts.map((contact) => (
               <div
@@ -222,7 +231,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
                   className="flex items-center gap-3 p-2 rounded bg-gray-800"
                 >
                   <img
-                    src={user.profilePicture || ""}
+                    src={user.profilePicture || ProfilePicture}
                     className="w-8 h-8 rounded-full"
                   />
                   <div className="flex-1">

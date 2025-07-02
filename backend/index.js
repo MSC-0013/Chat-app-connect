@@ -8,6 +8,8 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const connectDB = require('./config/db');
+const path = require('path');
+
 
 
 // Routes
@@ -42,6 +44,9 @@ const io = socketIo(server, {
     methods: ['GET', 'POST']
   }
 });
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 
 // API Routes
@@ -50,12 +55,15 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
 
+
+
 // Store online users
 const onlineUsers = new Map();
 
 // Socket.IO connection
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
+
 
   // User joins
   socket.on('join', async (userData) => {
