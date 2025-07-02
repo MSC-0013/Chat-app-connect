@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
@@ -19,10 +18,6 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
     min: 6
-  },
-  profilePicture: {
-    type: String,
-    default: ""
   },
   bio: {
     type: String,

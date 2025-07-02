@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
@@ -22,10 +21,15 @@ const MessageSchema = new mongoose.Schema({
   read: {
     type: Boolean,
     default: false
-  }
+  },
+  hiddenFor: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }
+  ]
 }, { timestamps: true });
 
-// Either receiver or group must be present
 MessageSchema.pre('validate', function(next) {
   if (!this.receiver && !this.group) {
     next(new Error('Message must have either a receiver or a group'));

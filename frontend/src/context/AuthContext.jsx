@@ -1,7 +1,6 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -112,7 +111,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 🛠 Update Profile (username, bio, etc.)
+  // ✏️ Update Profile (Username, Bio)
   const updateProfile = async (userData) => {
     setLoading(true);
     try {
@@ -141,30 +140,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 🖼 Upload Profile Image
-  const uploadProfileImage = async (imageFile) => {
-    try {
-      const formData = new FormData();
-      formData.append("image", imageFile);
-
-      const res = await axios.post(`${API_URL}/users/upload-profile`, formData, {
-        headers: {
-          Authorization: `Bearer ${currentUser.token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      const updatedUser = res.data.user;
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setCurrentUser(updatedUser);
-      toast.success("Profile picture updated!");
-      return updatedUser;
-    } catch (error) {
-      toast.error("Image upload failed");
-      throw error;
-    }
-  };
-
   return (
     <AuthContext.Provider value={{
       currentUser,
@@ -174,14 +149,13 @@ export const AuthProvider = ({ children }) => {
       login,
       logout,
       updateProfile,
-      uploadProfileImage
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// ✅ Easy hook to use anywhere
+// ✅ Custom Hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error('useAuth must be used within an AuthProvider');

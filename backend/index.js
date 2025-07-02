@@ -44,8 +44,7 @@ const io = socketIo(server, {
     methods: ['GET', 'POST']
   }
 });
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 
 

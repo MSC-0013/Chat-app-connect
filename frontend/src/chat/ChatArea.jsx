@@ -4,6 +4,7 @@ import { useSocket } from "../context/SocketContext";
 import { toast } from "sonner";
 import { Menu, Send, Info } from "lucide-react";
 import EmojiPicker from "./EmojiPicker"; // Or your emoji picker lib
+import ProfilePicture from "../assets/ProfileConnect.jpg"; // Default profile picture
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -12,6 +13,7 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
   const [newMessage, setNewMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
+  const [showDeleteFor, setShowDeleteFor] = useState(null);
 
   const { currentUser } = useAuth();
   const {
@@ -33,12 +35,19 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
       if (!selectedChat) return;
       const isRelevant = selectedChat.isGroup
         ? msg.group === selectedChat._id
-        : (msg.sender === selectedChat._id && msg.receiver === currentUser._id) ||
+        : (msg.sender === selectedChat._id &&
+            msg.receiver === currentUser._id) ||
           (msg.sender === currentUser._id && msg.receiver === selectedChat._id);
       if (isRelevant) setMessages((prev) => [...prev, msg]);
     });
     return () => socket.off("receiveMessage");
   }, [socket, selectedChat, currentUser]);
+
+  useEffect(() => {
+    const close = () => setShowDeleteFor(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, []);
 
   useEffect(() => {
     if (!selectedChat) return;
@@ -114,6 +123,38 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
     setNewMessage("");
     if (isTyping) handleTyping();
   };
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      const res = await fetch(`${API_URL}/messages/${messageId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${currentUser.token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to delete message");
+      setMessages((prev) => prev.filter((m) => m._id !== messageId));
+      toast.success("Message deleted.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete message.");
+    }
+  };
+  const handleDeleteForMe = async (messageId) => {
+    try {
+      const res = await fetch(`${API_URL}/messages/hide/${messageId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${currentUser.token}`,
+        },
+      });
+      if (!res.ok) throw new Error("Failed to delete message for me");
+      setMessages((prev) => prev.filter((m) => m._id !== messageId));
+      toast.success("Deleted for you.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete for you.");
+    }
+  };
 
   const formatTime = (ts) =>
     new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -139,7 +180,9 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
   if (!selectedChat)
     return (
       <div className="flex flex-col items-center justify-center h-full bg-gray-50">
-        <h2 className="text-3xl font-semibold text-gray-800">Welcome to Connect</h2>
+        <h2 className="text-3xl font-semibold text-gray-800">
+          Welcome to Connect
+        </h2>
         <p className="mt-2 text-sm text-gray-600">
           Select a conversation to start chatting
         </p>
@@ -155,35 +198,60 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b bg-white shadow-sm">
-        <button onClick={openSidebar} className="text-black">
-          <Menu />
-        </button>
+      <div className="sticky top-0 z-10 flex items-center gap-4 px-6 py-4 border-b border-gray-700 bg-black text-white">
+        {/* Profile Picture */}
+        <img
+          src={ProfilePicture}
+          alt="User"
+          className="w-10 h-10 rounded-full border-2 border-gray-500"
+        />
+
+        {/* Username and Status */}
         <div
+          className="flex flex-col cursor-pointer"
           onClick={() =>
             !selectedChat.isGroup && openUserProfile?.(selectedChat)
           }
-          className="text-center cursor-pointer"
         >
-          <h3 className="text-md font-semibold text-gray-800">
+          <h3 className="text-md font-semibold">
             {selectedChat.username || selectedChat.name}
           </h3>
-          <p className="text-xs text-gray-500">
-            {selectedChat.isGroup
-              ? `${selectedChat.members?.length || 0} members`
-              : onlineUsers.includes(selectedChat._id)
-              ? "Online"
-              : "Offline"}
-          </p>
+
+          {!selectedChat.isGroup && (
+            <div className="flex items-center gap-2 text-xs">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  onlineUsers.includes(selectedChat._id)
+                    ? "bg-green-400"
+                    : "bg-red-500"
+                }`}
+              ></span>
+              <span className="uppercase tracking-wide font-medium">
+                {onlineUsers.includes(selectedChat._id) ? "Online" : "Offline"}
+              </span>
+            </div>
+          )}
+
+          {selectedChat.isGroup && (
+            <p className="text-xs text-gray-300">
+              {selectedChat.members?.length || 0} members
+            </p>
+          )}
         </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Info or Group Tag */}
         {selectedChat.isGroup ? (
-          <span className="text-xs bg-gray-200 px-2 py-1 rounded-full">
+          <span className="text-xs px-3 py-1 rounded-full bg-purple-600 text-white font-semibold shadow-sm">
             Group
           </span>
         ) : (
           <button
             onClick={() => openUserProfile?.(selectedChat)}
-            className="text-gray-700"
+            className="text-white hover:text-blue-400 transition"
+            title="View Profile"
           >
             <Info />
           </button>
@@ -200,12 +268,21 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
             {msgs.map((msg, idx) => {
               const isSender = msg.sender === currentUser._id;
               return (
-                <div key={idx} className={`flex ${isSender ? "justify-end" : "justify-start"} px-2`}>
+                <div
+                  key={idx}
+                  className={`relative group flex ${
+                    isSender ? "justify-end" : "justify-start"
+                  } px-2`}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setShowDeleteFor(msg._id); // ✅ NEW: allow right-click for all messages
+                  }}
+                >
                   <div
-                    className={`max-w-[75%] px-4 py-2 mb-2 rounded-xl border shadow-sm ${
+                    className={`max-w-[80%] px-4 py-2 mb-2 rounded-2xl border shadow-md relative ${
                       isSender
-                        ? "bg-black text-white border-black rounded-br-none"
-                        : "bg-white text-black border-gray-400 rounded-bl-none"
+                        ? "bg-black text-white border-black rounded-br-sm self-end"
+                        : "bg-gray-100 text-black border-gray-300 rounded-bl-sm self-start"
                     }`}
                   >
                     {selectedChat.isGroup && !isSender && (
@@ -213,10 +290,44 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
                         {msg.sender.username || "User"}
                       </div>
                     )}
-                    <p className="whitespace-pre-wrap">{msg.text}</p>
+
+                    <p className="whitespace-pre-wrap break-words">
+                      {msg.text}
+                    </p>
+
                     <div className="text-[10px] text-right mt-1 text-gray-400">
                       {formatTime(msg.createdAt)}
                     </div>
+
+                    {/* Delete Popup Menu */}
+                    {showDeleteFor === msg._id && (
+                      <div
+                        className={`absolute ${
+                          isSender ? "right-0" : "left-0"
+                        } top-full mt-1 bg-white border shadow-lg rounded-md text-sm z-50 min-w-[150px]`}
+                      >
+                        {isSender && (
+                          <button
+                            onClick={() => {
+                              handleDeleteMessage(msg._id);
+                              setShowDeleteFor(null);
+                            }}
+                            className="w-full px-4 py-2 hover:bg-red-100 text-red-600 text-left"
+                          >
+                            Delete for Everyone
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            handleDeleteForMe(msg._id);
+                            setShowDeleteFor(null);
+                          }}
+                          className="w-full px-4 py-2 hover:bg-gray-100 text-gray-800 text-left"
+                        >
+                          Delete for Me
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -250,7 +361,9 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
           placeholder="Type a message..."
           className="flex-1 resize-none rounded-full border px-4 py-2 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-black"
         />
-        <EmojiPicker onEmojiSelect={(emoji) => setNewMessage((p) => p + emoji)} />
+        <EmojiPicker
+          onEmojiSelect={(emoji) => setNewMessage((p) => p + emoji)}
+        />
         <button
           type="submit"
           disabled={!newMessage.trim()}

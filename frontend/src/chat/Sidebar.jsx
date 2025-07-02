@@ -8,6 +8,7 @@ import UserProfile from "../profile/UserProfile";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ProfilePicture from "../assets/ProfileConnect.jpg";
+import Group from "../assets/7533464.jpg";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -129,13 +130,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
               onClick={() => setIsProfileOpen(true)}
             >
               <img
-                src={
-                  currentUser.profilePicture
-                    ? `${API_URL.replace("/api", "")}${
-                        currentUser.profilePicture
-                      }`
-                    : ProfilePicture
-                }
+                src={ProfilePicture}
                 alt="Avatar"
                 className="w-10 h-10 rounded-full border-2 border-blue-500"
               />
@@ -210,7 +205,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
                 }`}
               >
                 <img
-                  src={group.picture || ""}
+                  src={group.picture || Group}
                   className="w-8 h-8 rounded-full"
                 />
                 <div>
@@ -230,10 +225,8 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
                   key={user._id}
                   className="flex items-center gap-3 p-2 rounded bg-gray-800"
                 >
-                  <img
-                    src={user.profilePicture || ProfilePicture}
-                    className="w-8 h-8 rounded-full"
-                  />
+                  <img src={ProfilePicture} className="w-8 h-8 rounded-full" />
+
                   <div className="flex-1">
                     <p>{user.username}</p>
                     <p className="text-xs text-gray-400">

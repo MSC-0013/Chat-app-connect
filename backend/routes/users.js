@@ -2,9 +2,6 @@ const router = require("express").Router();
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const verifyToken = require("../middleware/verifyToken");
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 
 // 🔍 Search users
 router.get("/search/:username", verifyToken, async (req, res) => {
@@ -16,45 +13,6 @@ router.get("/search/:username", verifyToken, async (req, res) => {
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });
-  }
-});
-
-// 📁 Multer setup for image upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, "..", "uploads");
-    if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-const upload = multer({ storage });
-
-// ✅ FIXED: Upload image + update profile info
-router.post("/upload-profile", verifyToken, upload.single("image"), async (req, res) => {
-  try {
-    const { username, bio } = req.body;
-    const updates = {};
-
-    if (username) updates.username = username;
-    if (bio) updates.bio = bio;
-    if (req.file) {
-      updates.profilePicture = `/uploads/${req.file.filename}`;
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(
-      req.userId,
-      { $set: updates },
-      { new: true }
-    ).select("-password");
-
-    res.status(200).json({ message: "Profile updated", user: updatedUser });
-  } catch (err) {
-    console.error("Upload Error:", err.message);
-    res.status(500).json({ message: "Failed to update profile" });
   }
 });
 
@@ -102,7 +60,7 @@ router.get("/:id", verifyToken, async (req, res) => {
   }
 });
 
-// ✏️ Update profile (no image)
+// ✏️ Update profile (bio + username only)
 router.put("/:id", verifyToken, async (req, res) => {
   if (req.params.id !== req.userId) {
     return res.status(403).json({ message: "You can only update your own profile" });
@@ -114,9 +72,13 @@ router.put("/:id", verifyToken, async (req, res) => {
       req.body.password = await bcrypt.hash(req.body.password, salt);
     }
 
+    const allowedFields = {};
+    if (req.body.username) allowedFields.username = req.body.username;
+    if (req.body.bio) allowedFields.bio = req.body.bio;
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { $set: req.body },
+      { $set: allowedFields },
       { new: true }
     ).select("-password");
 

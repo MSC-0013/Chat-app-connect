@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
-import { Loader2, Camera, Check } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import ProfilePicture from "../assets/ProfileConnect.jpg";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
@@ -10,7 +10,6 @@ const ProfileEditor = ({ isOpen, onClose }) => {
   const { currentUser, setCurrentUser } = useAuth();
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
-  const [imageFile, setImageFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -20,31 +19,18 @@ const ProfileEditor = ({ isOpen, onClose }) => {
     }
   }, [currentUser, isOpen]);
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const formData = new FormData();
-      formData.append("username", username);
-      formData.append("bio", bio);
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
-
-      const res = await fetch(`${API_URL}/users/upload-profile`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/users/update-profile`, {
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${currentUser.token}`,
+          "Content-Type": "application/json",
         },
-        body: formData,
+        body: JSON.stringify({ username, bio }),
       });
 
       if (!res.ok) throw new Error("Update failed");
@@ -55,7 +41,6 @@ const ProfileEditor = ({ isOpen, onClose }) => {
         ...currentUser,
         username: data.user.username,
         bio: data.user.bio,
-        profilePicture: data.user.profilePicture,
       };
 
       setCurrentUser(updatedUser);
@@ -72,11 +57,10 @@ const ProfileEditor = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const finalImageSrc = imageFile
-    ? URL.createObjectURL(imageFile)
-    : currentUser?.profilePicture
-    ? `${API_URL.replace("/api", "")}/${currentUser.profilePicture}?t=${Date.now()}`
-    : ProfilePicture;
+  const finalImageSrc =
+    currentUser?.profilePicture
+      ? `${API_URL.replace("/api", "")}/${currentUser.profilePicture}?t=${Date.now()}`
+      : ProfilePicture;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -86,9 +70,10 @@ const ProfileEditor = ({ isOpen, onClose }) => {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar Upload Section */}
+
+          {/* Avatar (Read-only) */}
           <div className="flex justify-center">
-            <label className="relative group cursor-pointer">
+            <div className="relative">
               <img
                 src={finalImageSrc}
                 alt="avatar"
@@ -96,18 +81,9 @@ const ProfileEditor = ({ isOpen, onClose }) => {
                   e.target.onerror = null;
                   e.target.src = ProfilePicture;
                 }}
-                className="w-28 h-28 rounded-full object-cover border-4 border-blue-500 dark:border-blue-300 shadow-md transition-transform duration-300 group-hover:scale-105"
+                className="w-28 h-28 rounded-full object-cover border-4 border-blue-500 dark:border-blue-300 shadow-md"
               />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="hidden"
-              />
-              <div className="absolute bottom-0 right-0 bg-white dark:bg-gray-800 p-1.5 rounded-full shadow-md">
-                <Camera size={18} className="text-gray-700 dark:text-white" />
-              </div>
-            </label>
+            </div>
           </div>
 
           {/* Username */}
