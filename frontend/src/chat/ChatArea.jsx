@@ -198,64 +198,79 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-4 px-6 py-4 border-b border-gray-700 bg-black text-white">
-        {/* Profile Picture */}
-        <img
-          src={ProfilePicture}
-          alt="User"
-          className="w-10 h-10 rounded-full border-2 border-gray-500"
-        />
+      <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-black text-white">
+        {/* Left Section: Menu + Profile */}
+        <div className="flex items-center gap-3">
+          {/* Hamburger Menu (Mobile only) */}
+          <button
+            className="block md:hidden"
+            onClick={openSidebar}
+            title="Open Menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
 
-        {/* Username and Status */}
-        <div
-          className="flex flex-col cursor-pointer"
-          onClick={() =>
-            !selectedChat.isGroup && openUserProfile?.(selectedChat)
-          }
-        >
-          <h3 className="text-md font-semibold">
-            {selectedChat.username || selectedChat.name}
-          </h3>
+          {/* Profile Picture */}
+          <img
+            src={ProfilePicture}
+            alt="User"
+            className="w-10 h-10 rounded-full border-2 border-gray-500"
+          />
 
-          {!selectedChat.isGroup && (
-            <div className="flex items-center gap-2 text-xs">
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  onlineUsers.includes(selectedChat._id)
-                    ? "bg-green-400"
-                    : "bg-red-500"
-                }`}
-              ></span>
-              <span className="uppercase tracking-wide font-medium">
-                {onlineUsers.includes(selectedChat._id) ? "Online" : "Offline"}
-              </span>
-            </div>
-          )}
+          {/* Name & Status */}
+          <div
+            className="flex flex-col cursor-pointer"
+            onClick={() =>
+              !selectedChat.isGroup && openUserProfile?.(selectedChat)
+            }
+          >
+            <h3 className="text-md font-semibold">
+              {selectedChat.username || selectedChat.name}
+            </h3>
 
-          {selectedChat.isGroup && (
-            <p className="text-xs text-gray-300">
-              {selectedChat.members?.length || 0} members
-            </p>
-          )}
+            {/* Online / Offline */}
+            {!selectedChat.isGroup && (
+              <div className="flex items-center gap-2 text-xs">
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    onlineUsers.includes(selectedChat._id)
+                      ? "bg-green-400"
+                      : "bg-red-500"
+                  }`}
+                ></span>
+                <span className="uppercase tracking-wide font-medium">
+                  {onlineUsers.includes(selectedChat._id)
+                    ? "Online"
+                    : "Offline"}
+                </span>
+              </div>
+            )}
+
+            {/* Group Members Count */}
+            {selectedChat.isGroup && (
+              <p className="text-xs text-gray-300">
+                {selectedChat.members?.length || 0} members
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Info or Group Tag */}
-        {selectedChat.isGroup ? (
-          <span className="text-xs px-3 py-1 rounded-full bg-purple-600 text-white font-semibold shadow-sm">
-            Group
-          </span>
-        ) : (
-          <button
-            onClick={() => openUserProfile?.(selectedChat)}
-            className="text-white hover:text-blue-400 transition"
-            title="View Profile"
-          >
-            <Info />
-          </button>
-        )}
+        {/* Right Section: Info or Tag */}
+        <div>
+          {selectedChat.isGroup ? (
+            <span className="text-xs px-3 py-1 rounded-full bg-purple-600 text-white font-semibold shadow-sm">
+              Group
+            </span>
+          ) : (
+            <button
+              onClick={() => openUserProfile?.(selectedChat)}
+              className="text-white hover:text-blue-400 transition"
+              title="View Profile"
+            >
+              <Info />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages */}

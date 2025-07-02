@@ -1,8 +1,8 @@
-import { createContext, useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { createContext, useState, useEffect, useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export const AuthContext = createContext();
 
@@ -15,23 +15,23 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkLoggedIn = async () => {
       try {
-        const storedUser = localStorage.getItem('user');
+        const storedUser = localStorage.getItem("user");
         if (storedUser) {
           const user = JSON.parse(storedUser);
           const res = await fetch(`${API_URL}/users/${user._id}`, {
             headers: {
-              'Authorization': `Bearer ${user.token}`
-            }
+              Authorization: `Bearer ${user.token}`,
+            },
           });
           if (res.ok) {
             setCurrentUser(user);
           } else {
-            localStorage.removeItem('user');
+            localStorage.removeItem("user");
           }
         }
       } catch (error) {
         console.error("Auth check error:", error);
-        localStorage.removeItem('user');
+        localStorage.removeItem("user");
       } finally {
         setLoading(false);
       }
@@ -44,20 +44,20 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Registration failed');
+      if (!res.ok) throw new Error(data.message || "Registration failed");
 
-      localStorage.setItem('user', JSON.stringify(data));
+      localStorage.setItem("user", JSON.stringify(data));
       setCurrentUser(data);
-      toast.success('Registration successful!');
-      navigate('/chat');
+      toast.success("Registration successful!");
+      navigate("/chat");
       return data;
     } catch (error) {
-      toast.error(error.message || 'Registration failed');
+      toast.error(error.message || "Registration failed");
       throw error;
     } finally {
       setLoading(false);
@@ -69,20 +69,20 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials)
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(credentials),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Login failed');
+      if (!res.ok) throw new Error(data.message || "Login failed");
 
-      localStorage.setItem('user', JSON.stringify(data));
+      localStorage.setItem("user", JSON.stringify(data));
       setCurrentUser(data);
-      toast.success('Login successful!');
-      navigate('/');
+      toast.success("Login successful!");
+      navigate("/");
       return data;
     } catch (error) {
-      toast.error(error.message || 'Login failed');
+      toast.error(error.message || "Login failed");
       throw error;
     } finally {
       setLoading(false);
@@ -94,20 +94,20 @@ export const AuthProvider = ({ children }) => {
     try {
       if (currentUser) {
         await fetch(`${API_URL}/auth/logout`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentUser.token}`
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${currentUser.token}`,
           },
-          body: JSON.stringify({ userId: currentUser._id })
+          body: JSON.stringify({ userId: currentUser._id }),
         });
       }
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      localStorage.removeItem('user');
+      localStorage.removeItem("user");
       setCurrentUser(null);
-      navigate('/login');
+      navigate("/login");
     }
   };
 
@@ -116,24 +116,33 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/users/${currentUser._id}`, {
-        method: 'PUT',
+        method: "PUT",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentUser.token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentUser.token}`,
         },
-        body: JSON.stringify(userData)
+        body: JSON.stringify(userData),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Update failed');
+      if (!res.ok) throw new Error(data.message || "Update failed");
 
-      const updatedUser = { ...currentUser, ...data };
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      const updatedUser = {
+        ...currentUser,
+        username: data.user?.username ?? currentUser.username,
+        bio: data.user?.bio ?? currentUser.bio,
+        profilePicture: data.user?.profilePicture ?? currentUser.profilePicture,
+        email: data.user?.email ?? currentUser.email,
+        token: currentUser.token, // Ensure token is preserved
+        _id: currentUser._id,     // Preserve ID
+      };
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
       setCurrentUser(updatedUser);
-      toast.success('Profile updated successfully!');
+      toast.success("Profile updated successfully!");
       return data;
     } catch (error) {
-      toast.error(error.message || 'Update failed');
+      toast.error(error.message || "Update failed");
       throw error;
     } finally {
       setLoading(false);
@@ -141,15 +150,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{
-      currentUser,
-      setCurrentUser,
-      loading,
-      register,
-      login,
-      logout,
-      updateProfile,
-    }}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        setCurrentUser,
+        loading,
+        register,
+        login,
+        logout,
+        updateProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -158,6 +169,6 @@ export const AuthProvider = ({ children }) => {
 // ✅ Custom Hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 };

@@ -7,7 +7,7 @@ import ProfilePicture from "../assets/ProfileConnect.jpg";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const ProfileEditor = ({ isOpen, onClose }) => {
-  const { currentUser, setCurrentUser } = useAuth();
+  const { currentUser, updateProfile } = useAuth();
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -24,28 +24,7 @@ const ProfileEditor = ({ isOpen, onClose }) => {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/users/update-profile`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${currentUser.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, bio }),
-      });
-
-      if (!res.ok) throw new Error("Update failed");
-
-      const data = await res.json();
-
-      const updatedUser = {
-        ...currentUser,
-        username: data.user.username,
-        bio: data.user.bio,
-      };
-
-      setCurrentUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-
+      await updateProfile({ username, bio });
       toast.success("Profile updated");
       onClose();
     } catch (err) {
@@ -57,10 +36,9 @@ const ProfileEditor = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const finalImageSrc =
-    currentUser?.profilePicture
-      ? `${API_URL.replace("/api", "")}/${currentUser.profilePicture}?t=${Date.now()}`
-      : ProfilePicture;
+  const finalImageSrc = currentUser?.profilePicture
+    ? `${API_URL.replace("/api", "")}/${currentUser.profilePicture}?t=${Date.now()}`
+    : ProfilePicture;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -70,20 +48,17 @@ const ProfileEditor = ({ isOpen, onClose }) => {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* Avatar (Read-only) */}
+          {/* Avatar */}
           <div className="flex justify-center">
-            <div className="relative">
-              <img
-                src={finalImageSrc}
-                alt="avatar"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = ProfilePicture;
-                }}
-                className="w-28 h-28 rounded-full object-cover border-4 border-blue-500 dark:border-blue-300 shadow-md"
-              />
-            </div>
+            <img
+              src={finalImageSrc}
+              alt="avatar"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = ProfilePicture;
+              }}
+              className="w-28 h-28 rounded-full object-cover border-4 border-blue-500 dark:border-blue-300 shadow-md"
+            />
           </div>
 
           {/* Username */}
@@ -96,7 +71,6 @@ const ProfileEditor = ({ isOpen, onClose }) => {
             </label>
             <input
               id="username"
-              name="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -114,7 +88,6 @@ const ProfileEditor = ({ isOpen, onClose }) => {
             </label>
             <textarea
               id="bio"
-              name="bio"
               value={bio}
               onChange={(e) => setBio(e.target.value)}
               maxLength={160}
