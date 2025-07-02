@@ -25,8 +25,8 @@ const Login = () => {
     setErrorMsg("");
 
     try {
-      await login(formData);
-      toast.success("Login successful");
+      const user = await login(formData);
+      toast.success(`Welcome back to Connect, ${user.username || "User"}!`);
       navigate("/chat");
     } catch (err) {
       console.error("Login error:", err);
@@ -40,37 +40,36 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
       <div className="w-full max-w-md bg-black border border-white/20 rounded-2xl shadow-xl p-8">
-        <h2 className="text-3xl font-bold text-center mb-6">Sign In</h2>
+        <h1 className="text-4xl font-bold text-center mb-1">Connect</h1>
+        <p className="text-center text-sm text-gray-400 mb-6">
+          Welcome back. Let’s get you connected.
+        </p>
 
         {errorMsg && (
-          <div className="mb-4 px-4 py-2 rounded border border-red-400 bg-red-500/10 text-red-300 text-sm">
+          <div className="mb-4 px-4 py-2 rounded border border-red-500 bg-red-500/10 text-red-300 text-sm">
             {errorMsg}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email Field */}
+          {/* Email */}
           <div>
-            <label htmlFor="email" className="text-sm font-medium mb-1 block">
-              Email
-            </label>
+            
             <input
               id="email"
               name="email"
               type="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="you@example.com"
+              placeholder="Email ID"
               required
               className="w-full px-4 py-2 rounded-lg bg-transparent border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition"
             />
           </div>
 
-          {/* Password Field */}
+          {/* Password */}
           <div>
-            <label htmlFor="password" className="text-sm font-medium mb-1 block">
-              Password
-            </label>
+            
             <div className="relative">
               <input
                 id="password"
@@ -78,7 +77,7 @@ const Login = () => {
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="••••••••"
+                placeholder="password"
                 required
                 className="w-full px-4 py-2 pr-10 rounded-lg bg-transparent border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition"
               />

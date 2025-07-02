@@ -8,7 +8,6 @@ import ChatLayout from "./chat/ChatLayout";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
-import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
@@ -17,7 +16,7 @@ const App = () => (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<Login />} />
           <Route
             path="/chat"
             element={
