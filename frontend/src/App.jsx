@@ -16,7 +16,16 @@ const App = () => (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<Login />} />
+          {/* 👇 Both `/` and `/chat` load the chat layout when authenticated */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <ChatLayout />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/chat"
             element={
@@ -25,8 +34,12 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+
+          {/* 👇 Login & Register */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+
+          {/* 👇 404 fallback */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </AuthProvider>
