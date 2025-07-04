@@ -1,4 +1,4 @@
-# 💬 Connect Eight - Real-Time Chat App
+# 💬 Connect - Real-Time Chat App
 
 🌐 Live Demo: [https://chat-app-connect-eight.vercel.app](https://chat-app-connect-eight.vercel.app)
 
