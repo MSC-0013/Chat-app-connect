@@ -156,15 +156,21 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
     }
   };
 
-  const formatTime = (ts) =>
-    new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const formatDate = (ts) => {
-    const d = new Date(ts),
-      n = new Date();
-    if (d.toDateString() === n.toDateString()) return "Today";
-    const y = new Date(n).setDate(n.getDate() - 1);
-    if (d.toDateString() === new Date(y).toDateString()) return "Yesterday";
-    return d.toLocaleDateString();
+    const d = new Date(ts);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (d.toDateString() === today.toDateString()) return "Today";
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+
+    // Return in format: 11 July 2025
+    return d.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   };
 
   const grouped = messages.reduce((acc, m) => {
