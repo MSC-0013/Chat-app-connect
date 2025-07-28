@@ -131,8 +131,11 @@ Realtime chat interface using **Socket.IO**. Includes:
 
 ---
 ### Step 1: Clone the Repository
+
+<pre>
 git clone https://github.com/yourusername/chat-app-connect-eight.git
 cd chat-app-connect-eight
+</pre>
 
 Step 2: Install Dependencies
 
