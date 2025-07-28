@@ -119,6 +119,9 @@ Realtime chat interface using **Socket.IO**. Includes:
   <img src="screenshots/Chat.png" width="260" />
 </p>
 
+
+<pre>
+
 ---
 ## 🛠️ Installation & Setup
 
@@ -127,9 +130,7 @@ Realtime chat interface using **Socket.IO**. Includes:
 - **MongoDB** — Use a local instance or cloud service like [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 
 ---
-
 ### Step 1: Clone the Repository
-```bash
 git clone https://github.com/yourusername/chat-app-connect-eight.git
 cd chat-app-connect-eight
 
@@ -167,6 +168,7 @@ Start frontend development server:
 
 cd ../frontend
 npm run dev
+</pre>
 
 
 👤 Author
