@@ -120,7 +120,7 @@ Realtime chat interface using **Socket.IO**. Includes:
 </p>
 
 
-<pre>
+
 
 ---
 ## 🛠️ Installation & Setup
@@ -137,35 +137,45 @@ cd chat-app-connect-eight
 Step 2: Install Dependencies
 
 Backend:
+<pre>
 cd backend
 npm install
+</pre>
 
 Frontend:
+<pre>
 cd ../frontend
 npm install
+</pre>
 
 Step 3: Configure Environment Variables
 Create .env files inside both the backend and frontend folders.
 
 Backend .env example:
 
+<pre>
 DB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret_key
 PORT=5000
+</pre>
 
 Frontend .env example:
 
+<pre>
 VITE_API_URL=http://localhost:5000/api
+</pre>
 
 Step 4: Run the Application
 Start backend server:
 
+<pre>
 cd ../backend
 npm start
-
+</pre>
 
 Start frontend development server:
 
+<pre>
 cd ../frontend
 npm run dev
 </pre>
@@ -181,4 +191,4 @@ Soumayshree Rout
 📬 Contact
 📧 Email: <soumyashreerout99@gmail.com>
 
-💼 LinkedIn: [Linkedin Profile]([https://](https://www.linkedin.com/in/soumyashree-rout-500671253/)
+💼 LinkedIn: [Linkedin Profile](https://www.linkedin.com/in/soumyashree-rout-500671253/)
