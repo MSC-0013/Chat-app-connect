@@ -120,55 +120,54 @@ Realtime chat interface using **Socket.IO**. Includes:
 </p>
 
 ---
+## 🛠️ Installation & Setup
 
-🛠️ Installation & Setup
-Prerequisites
-Node.js (v16 or higher) — Download here
+### Prerequisites
+- **Node.js** (v16 or higher) — [Download here](https://nodejs.org/)
+- **MongoDB** — Use a local instance or cloud service like [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 
-MongoDB — You can use a local instance or a cloud service like MongoDB Atlas
+---
 
-Step 1: Clone the Repository
-git clone [https://github.com/yourusername/chat-app-connect-eight.git](https://github.com/yourusername/chat-app-connect-eight.git)
+### Step 1: Clone the Repository
+```bash
+git clone https://github.com/yourusername/chat-app-connect-eight.git
 cd chat-app-connect-eight
 
 Step 2: Install Dependencies
-Install backend dependencies:
+
+Backend:
 cd backend
 npm install
 
-Install frontend dependencies:
+Frontend:
 cd ../frontend
 npm install
 
 Step 3: Configure Environment Variables
-Create .env files in both the backend and frontend folders.
+Create .env files inside both the backend and frontend folders.
 
 Backend .env example:
+
 DB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret_key
 PORT=5000
 
 Frontend .env example:
+
 VITE_API_URL=http://localhost:5000/api
 
 Step 4: Run the Application
-Start the backend server:
+Start backend server:
 
 cd ../backend
 npm start
-# or
-node index.js
 
-Start the frontend development server:
+
+Start frontend development server:
+
 cd ../frontend
 npm run dev
 
-⚙️ Deployment
-Deployed frontend and backend separately:
-
-Frontend: Vercel
-
-Backend: Render
 
 👤 Author
 Soumayshree Rout
