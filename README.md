@@ -40,35 +40,17 @@ Whether you're connecting with friends or collaborating with teams, Connect offe
 - 🔐 **Authentication & Authorization**  
   Secure user registration, login, and role-based access using JWT tokens.
 
-- 🛒 **Shopping Cart & Wishlist**  
-  Seamless add/remove functionality with quantity updates and persistence.
-
-- 👤 **User Dashboard**  
-  View orders, update profile info, and manage personal data.
-
-- 🛠️ **Admin Dashboard**  
-  Full control over products, categories, and users with analytics.
-
-- 📦 **Product Management**  
-  Create, update, and delete products with image upload and categorization.
-
 - 💬 **Real-Time Toast Notifications**  
-  Instant feedback for actions (added to cart, login success, errors, etc.).
-
-- 💳 **Order Placement & Checkout Flow**  
-  Simulated order system with pricing, shipping, and order history.
-
-- 🔎 **Product Search & Filter**  
-  Search products by name, filter by category, and sort by price.
+  Instant feedback for actions.
 
 - 🧠 **State Management with Context API**  
-  Efficient global state sharing for cart, wishlist, auth, and admin.
+.Efficient global state sharing for Users with auth-context and socket-context for gtoup and contact sharing.
 
 - 🎨 **Stylish UI with Tailwind CSS + Framer Motion**  
   Beautifully animated, responsive design with modern interactions.
 
 - 🔗 **Routing with React Router**  
-  Protected and public routes managed via client-side routing.
+  Protected routes managed via routing.
 
 - ☁️ **Deployed on Vercel & Render**  
   Frontend hosted on Vercel, backend on Render for full-stack deployment.
@@ -88,7 +70,6 @@ Whether you're connecting with friends or collaborating with teams, Connect offe
 | Express.js       | Backend web framework                       |
 | MongoDB & Mongoose | Database and schema modeling             |
 | JWT              | Secure token-based authentication           |
-| Cloudinary       | Image uploading and storage                 |
 | Vercel           | Hosting for frontend                        |
 | Render           | Hosting for backend                         |
 | Dotenv           | Environment configuration                   |
@@ -105,7 +86,7 @@ Whether you're connecting with friends or collaborating with teams, Connect offe
 Secure login with username & password. Form validation, animations, and responsive design.
 
 <p float="left">
-  <img src="screenshots/login.png" width="260" />
+  <img src="screenshots/Login.png" width="260" />
 </p>
 ---
 
@@ -113,7 +94,7 @@ Secure login with username & password. Form validation, animations, and responsi
 User registration with input validation and smooth user experience.
 
 <p float="left">
-  <img src="screenshots/register.png" width="260" />
+  <img src="screenshots/Register.png" width="260" />
 </p>
 
 
@@ -122,7 +103,7 @@ User registration with input validation and smooth user experience.
 Displays all available chat groups. Users can join, leave, or create rooms.
 
 <p float="left">
-  <img src="screenshots/group.png" width="260" />
+  <img src="screenshots/Group.png" width="260" />
 </p>
 
 ---
@@ -135,7 +116,7 @@ Realtime chat interface using **Socket.IO**. Includes:
 - Typing indicators
 
 <p float="left">
-  <img src="screenshots/chat.png" width="260" />
+  <img src="screenshots/Chat.png" width="260" />
 </p>
 
 ---
