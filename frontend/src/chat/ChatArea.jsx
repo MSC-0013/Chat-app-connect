@@ -156,22 +156,34 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
     }
   };
 
-  const formatDate = (ts) => {
-    const d = new Date(ts);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
+  // Format a timestamp into "Today", "Yesterday", or "11 July 2025"
+const formatDate = (ts) => {
+  const d = new Date(ts);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
 
-    if (d.toDateString() === today.toDateString()) return "Today";
-    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
 
-    // Return in format: 11 July 2025
-    return d.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
+  // Return in format: 11 July 2025
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
+// Format a timestamp into "02:15 PM" or "14:15" depending on preference
+const formatTime = (timestamp) => {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true, // Change to false for 24-hour format
+  });
+};
+
 
   const grouped = messages.reduce((acc, m) => {
     const key = formatDate(m.createdAt);
