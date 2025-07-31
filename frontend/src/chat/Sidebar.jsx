@@ -4,7 +4,6 @@ import { useSocket } from "../context/SocketContext";
 import { Search, LogOut, Users } from "lucide-react";
 import ProfileEditor from "../profile/ProfileEditor";
 import CreateGroupModal from "../groups/CreateGroupModal";
-import UserProfile from "../profile/UserProfile";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import ProfilePicture from "../assets/ProfileConnect.jpg";
@@ -16,12 +15,11 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
   const [activeTab, setActiveTab] = useState("chats");
   const [contacts, setContacts] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [confirmLogout, setConfirmLogout] = useState(false);
 
@@ -270,15 +268,7 @@ const Sidebar = ({ selectedChat, setSelectedChat, closeMobileSidebar }) => {
           setActiveTab("groups");
         }}
       />
-      <UserProfile
-        user={selectedUser}
-        isOpen={isUserProfileOpen}
-        onClose={() => setIsUserProfileOpen(false)}
-        onStartChat={(user) => {
-          selectChat(user);
-          setIsUserProfileOpen(false);
-        }}
-      />
+
       {confirmLogout && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50">
           <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg text-white space-y-4 w-[90%] max-w-sm">

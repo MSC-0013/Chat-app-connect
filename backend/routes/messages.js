@@ -82,29 +82,5 @@ router.put('/read/:senderId', verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Get unread message count
-router.get('/unread/count', verifyToken, async (req, res) => {
-  try {
-    const unreadCounts = await Message.aggregate([
-      {
-        $match: {
-          receiver: new mongoose.Types.ObjectId(req.userId),
-          read: false,
-          hiddenFor: { $ne: new mongoose.Types.ObjectId(req.userId) }
-        }
-      },
-      {
-        $group: {
-          _id: "$sender",
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    res.status(200).json(unreadCounts);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
 module.exports = router;

@@ -131,7 +131,6 @@ export const AuthProvider = ({ children }) => {
         ...currentUser,
         username: data.user?.username ?? currentUser.username,
         bio: data.user?.bio ?? currentUser.bio,
-        profilePicture: data.user?.profilePicture ?? currentUser.profilePicture,
         email: data.user?.email ?? currentUser.email,
         token: currentUser.token, // Ensure token is preserved
         _id: currentUser._id,     // Preserve ID

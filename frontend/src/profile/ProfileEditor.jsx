@@ -4,8 +4,6 @@ import { toast } from "sonner";
 import { Loader2, Check } from "lucide-react";
 import ProfilePicture from "../assets/ProfileConnect.jpg";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
 const ProfileEditor = ({ isOpen, onClose }) => {
   const { currentUser, updateProfile } = useAuth();
   const [username, setUsername] = useState("");
@@ -36,10 +34,6 @@ const ProfileEditor = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const finalImageSrc = currentUser?.profilePicture
-    ? `${API_URL.replace("/api", "")}/${currentUser.profilePicture}?t=${Date.now()}`
-    : ProfilePicture;
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-auto">
@@ -48,25 +42,18 @@ const ProfileEditor = ({ isOpen, onClose }) => {
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar */}
+          {/* Avatar (always default) */}
           <div className="flex justify-center">
             <img
-              src={finalImageSrc}
+              src={ProfilePicture}
               alt="avatar"
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.src = ProfilePicture;
-              }}
               className="w-28 h-28 rounded-full object-cover border-4 border-blue-500 dark:border-blue-300 shadow-md"
             />
           </div>
 
           {/* Username */}
           <div>
-            <label
-              htmlFor="username"
-              className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <label htmlFor="username" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               Username
             </label>
             <input
@@ -80,10 +67,7 @@ const ProfileEditor = ({ isOpen, onClose }) => {
 
           {/* Bio */}
           <div>
-            <label
-              htmlFor="bio"
-              className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <label htmlFor="bio" className="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
               Bio
             </label>
             <textarea
@@ -93,9 +77,7 @@ const ProfileEditor = ({ isOpen, onClose }) => {
               maxLength={160}
               className="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800 dark:text-white h-28 resize-none"
             />
-            <p className="text-right text-xs text-gray-500 mt-1">
-              {bio.length}/160 characters
-            </p>
+            <p className="text-right text-xs text-gray-500 mt-1">{bio.length}/160 characters</p>
           </div>
 
           {/* Buttons */}
