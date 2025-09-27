@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./pages/ProtectedRoute";
 
@@ -16,16 +16,14 @@ const App = () => (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* 👇 Both `/` and `/chat` load the chat layout when authenticated */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <ChatLayout />
-              </ProtectedRoute>
-            }
-          />
+          {/* 👇 Default route goes to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
+          {/* 👇 Login & Register always accessible */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+          {/* 👇 Chat only when authenticated */}
           <Route
             path="/chat"
             element={
@@ -34,10 +32,6 @@ const App = () => (
               </ProtectedRoute>
             }
           />
-
-          {/* 👇 Login & Register */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
 
           {/* 👇 404 fallback */}
           <Route path="*" element={<NotFound />} />

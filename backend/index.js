@@ -1,16 +1,9 @@
-
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
-const mongoose = require('mongoose');
 const socketIo = require('socket.io');
 const dotenv = require('dotenv');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const connectDB = require('./config/db');
-const path = require('path');
-
-
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -36,7 +29,6 @@ const server = http.createServer(app);
 // Connect to MongoDB
 connectDB();
 
-
 // Initialize Socket.IO
 const io = socketIo(server, {
   cors: {
@@ -45,16 +37,11 @@ const io = socketIo(server, {
   }
 });
 
-
-
-
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
-
-
 
 // Store online users
 const onlineUsers = new Map();
@@ -63,23 +50,14 @@ const onlineUsers = new Map();
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
 
-
   // User joins
   socket.on('join', async (userData) => {
     try {
       const { userId } = userData;
-      
-      // Add user to online users
       onlineUsers.set(userId, socket.id);
-      
-      // Update user status to online
       await User.findByIdAndUpdate(userId, { isOnline: true });
-      
-      // Emit to all clients that user is online
       io.emit('userStatus', { userId, status: true });
-      
       console.log('User joined:', userId);
-      console.log('Online users:', Array.from(onlineUsers.keys()));
     } catch (error) {
       console.error('Join error:', error);
     }
@@ -89,30 +67,19 @@ io.on('connection', (socket) => {
   socket.on('sendMessage', async (messageData) => {
     try {
       const { senderId, receiverId, text, groupId } = messageData;
-      
-      // Create new message
       const newMessage = new Message({
         sender: senderId,
         text,
         ...(groupId ? { group: groupId } : { receiver: receiverId }),
         createdAt: new Date()
       });
-      
-      // Save message to database
       const savedMessage = await newMessage.save();
-      
-      // If it's a group message, send to all users in the group
+
       if (groupId) {
         io.to(groupId).emit('receiveMessage', savedMessage);
-      } 
-      // If it's a private message, send to the receiver
-      else {
+      } else {
         const receiverSocketId = onlineUsers.get(receiverId);
-        
-        // Send message to sender
         io.to(socket.id).emit('receiveMessage', savedMessage);
-        
-        // Send message to receiver if online
         if (receiverSocketId) {
           io.to(receiverSocketId).emit('receiveMessage', savedMessage);
         }
@@ -161,7 +128,6 @@ io.on('connection', (socket) => {
   // User disconnects
   socket.on('disconnect', async () => {
     try {
-      // Find user by socket ID
       let userId = null;
       for (const [key, value] of onlineUsers.entries()) {
         if (value === socket.id) {
@@ -169,17 +135,10 @@ io.on('connection', (socket) => {
           break;
         }
       }
-      
       if (userId) {
-        // Remove user from online users
         onlineUsers.delete(userId);
-        
-        // Update user status to offline
         await User.findByIdAndUpdate(userId, { isOnline: false });
-        
-        // Emit to all clients that user is offline
         io.emit('userStatus', { userId, status: false });
-        
         console.log('User disconnected:', userId);
       }
     } catch (error) {
