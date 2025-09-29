@@ -11,35 +11,12 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // 🔐 Check if user is logged in on mount
   useEffect(() => {
-    const checkLoggedIn = async () => {
-      try {
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          const user = JSON.parse(storedUser);
-          const res = await fetch(`${API_URL}/users/${user._id}`, {
-            headers: {
-              Authorization: `Bearer ${user.token}`,
-            },
-          });
-          if (res.ok) {
-            setCurrentUser(user);
-          } else {
-            localStorage.removeItem("user");
-          }
-        }
-      } catch (error) {
-        console.error("Auth check error:", error);
-        localStorage.removeItem("user");
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkLoggedIn();
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setCurrentUser(JSON.parse(storedUser));
+    setLoading(false);
   }, []);
 
-  // 📝 Register
   const register = async (userData) => {
     setLoading(true);
     try {
@@ -64,7 +41,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 🔐 Login
   const login = async (credentials) => {
     setLoading(true);
     try {
@@ -79,7 +55,6 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("user", JSON.stringify(data));
       setCurrentUser(data);
       toast.success("Login successful!");
-      navigate("/");
       return data;
     } catch (error) {
       toast.error(error.message || "Login failed");
@@ -89,7 +64,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 🚪 Logout
   const logout = async () => {
     try {
       if (currentUser) {
@@ -111,7 +85,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ✏️ Update Profile (Username, Bio)
   const updateProfile = async (userData) => {
     setLoading(true);
     try {
@@ -123,7 +96,6 @@ export const AuthProvider = ({ children }) => {
         },
         body: JSON.stringify(userData),
       });
-
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
@@ -132,8 +104,8 @@ export const AuthProvider = ({ children }) => {
         username: data.user?.username ?? currentUser.username,
         bio: data.user?.bio ?? currentUser.bio,
         email: data.user?.email ?? currentUser.email,
-        token: currentUser.token, // Ensure token is preserved
-        _id: currentUser._id,     // Preserve ID
+        token: currentUser.token,
+        _id: currentUser._id,
       };
 
       localStorage.setItem("user", JSON.stringify(updatedUser));
@@ -165,7 +137,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// ✅ Custom Hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");

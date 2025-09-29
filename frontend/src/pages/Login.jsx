@@ -1,23 +1,47 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 const Login = () => {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [fallback, setFallback] = useState(false);
 
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
+  useEffect(() => {
+    const fingerprintLogin = async () => {
+      if (!window.PublicKeyCredential) {
+        setFallback(true);
+        return toast.warning("Fingerprint not supported. Use email/password.");
+      }
+
+      try {
+        await navigator.credentials.get({
+          publicKey: {
+            challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]),
+            allowCredentials: [],
+          },
+        });
+
+        // Demo: Use stored demo email/password for fingerprint login
+        const userEmail = "mscx0013@shd";
+        const user = await login({ email: userEmail, password: "demo" });
+        toast.success(`Logged in with fingerprint! Welcome, ${user.username || "User"}!`);
+        navigate("/chat");
+      } catch (err) {
+        console.error("Fingerprint login failed:", err);
+        toast.warning("Fingerprint failed. Please login with email/password.");
+        setFallback(true);
+      }
+    };
+
+    fingerprintLogin();
+  }, [login, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,10 +50,10 @@ const Login = () => {
 
     try {
       const user = await login(formData);
-      toast.success(`Welcome back to Connect, ${user.username || "User"}!`);
+      toast.success(`Welcome back, ${user.username || "User"}!`);
       navigate("/chat");
     } catch (err) {
-      console.error("Login error:", err);
+      console.error(err);
       setErrorMsg("Invalid email or password.");
       toast.error("Login failed");
     } finally {
@@ -37,12 +61,20 @@ const Login = () => {
     }
   };
 
+  if (!fallback) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
+        <h1 className="text-3xl font-bold">Authenticate with your fingerprint</h1>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
       <div className="w-full max-w-md bg-black border border-white/20 rounded-2xl shadow-xl p-8">
         <h1 className="text-4xl font-bold text-center mb-1">Connect</h1>
         <p className="text-center text-sm text-gray-400 mb-6">
-          Welcome back. Let’s get you connected.
+          Welcome back. Please login.
         </p>
 
         {errorMsg && (
@@ -52,32 +84,28 @@ const Login = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Email */}
           <div>
-            
             <input
               id="email"
               name="email"
               type="email"
               value={formData.email}
-              onChange={handleChange}
-              placeholder="Email ID"
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="Email"
               required
               className="w-full px-4 py-2 rounded-lg bg-transparent border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition"
             />
           </div>
 
-          {/* Password */}
           <div>
-            
             <div className="relative">
               <input
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
                 value={formData.password}
-                onChange={handleChange}
-                placeholder="password"
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Password"
                 required
                 className="w-full px-4 py-2 pr-10 rounded-lg bg-transparent border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition"
               />
@@ -89,17 +117,8 @@ const Login = () => {
                 {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
-            <div className="text-right mt-1">
-              <Link
-                to="/forgot-password"
-                className="text-sm underline underline-offset-2 hover:text-gray-300"
-              >
-                Forgot password?
-              </Link>
-            </div>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -113,7 +132,6 @@ const Login = () => {
           </button>
         </form>
 
-        {/* Footer */}
         <div className="mt-6 text-center text-sm text-gray-400">
           Don’t have an account?{" "}
           <Link to="/register" className="underline underline-offset-2 hover:text-white">

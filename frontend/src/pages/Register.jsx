@@ -36,8 +36,31 @@ const Register = () => {
     setIsLoading(true);
     try {
       const { confirmPassword, ...userData } = formData;
+
       const user = await register(userData);
       toast.success(`Welcome to Connect, ${user.username || "User"}!`);
+
+      // Setup fingerprint (WebAuthn) after registration
+      if (window.PublicKeyCredential) {
+        try {
+          await navigator.credentials.create({
+            publicKey: {
+              challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]),
+              rp: { name: "Connect App" },
+              user: {
+                id: new TextEncoder().encode(user._id),
+                name: user.email,
+                displayName: user.username,
+              },
+              pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+            },
+          });
+          toast.success("Fingerprint registered successfully!");
+        } catch {
+          toast.error("Fingerprint setup failed.");
+        }
+      }
+
       navigate("/chat");
     } catch (error) {
       console.error("Registration failed:", error);
@@ -51,7 +74,7 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md border border-white/20 rounded-xl p-8">
-        <h1 className="text-4xl font-bold text-center text-white mb-1">Connect</h1>
+        <h1 className="text-4xl font-bold text-center mb-1">Connect</h1>
         <p className="text-center text-gray-400 mb-6 text-sm">
           Create an account and start meaningful conversations.
         </p>
@@ -63,9 +86,7 @@ const Register = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Username */}
           <div>
-            
             <input
               id="username"
               name="username"
@@ -73,14 +94,12 @@ const Register = () => {
               value={formData.username}
               onChange={handleChange}
               required
-              placeholder="username"
+              placeholder="Username"
               className="w-full px-4 py-2 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
             />
           </div>
 
-          {/* Email */}
           <div>
-          
             <input
               id="email"
               name="email"
@@ -93,9 +112,7 @@ const Register = () => {
             />
           </div>
 
-          {/* Password */}
           <div>
-            
             <div className="relative">
               <input
                 id="password"
@@ -104,23 +121,20 @@ const Register = () => {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                placeholder="password"
+                placeholder="Password"
                 className="w-full px-4 py-2 pr-10 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
-                aria-label="Toggle password"
               >
                 {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div>
-            
             <div className="relative">
               <input
                 id="confirmPassword"
@@ -129,21 +143,19 @@ const Register = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 required
-                placeholder="confirm password"
+                placeholder="Confirm Password"
                 className="w-full px-4 py-2 pr-10 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
-                aria-label="Toggle confirm password"
               >
                 {showConfirmPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
               </button>
             </div>
           </div>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading}
@@ -157,7 +169,6 @@ const Register = () => {
           </button>
         </form>
 
-        {/* Footer */}
         <div className="mt-6 text-center text-sm text-gray-400">
           Already have an account?{" "}
           <Link to="/login" className="underline hover:text-white">
