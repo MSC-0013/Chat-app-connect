@@ -43,7 +43,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/groups', groupRoutes);
 
-// Store online users
+// Store online users globally
 const onlineUsers = new Map();
 
 // Socket.IO connection
@@ -51,22 +51,21 @@ io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
 
   // User joins
-  socket.on('join', async (userData) => {
+  socket.on('join', async ({ userId }) => {
     try {
-      const { userId } = userData;
       onlineUsers.set(userId, socket.id);
       await User.findByIdAndUpdate(userId, { isOnline: true });
-      io.emit('userStatus', { userId, status: true });
+      io.emit('onlineUsers', Array.from(onlineUsers.keys())); // send full list
       console.log('User joined:', userId);
-    } catch (error) {
-      console.error('Join error:', error);
+    } catch (err) {
+      console.error('Join error:', err);
     }
   });
 
-  // User sends a message
-  socket.on('sendMessage', async (messageData) => {
+  // Send message
+  socket.on('sendMessage', async (data) => {
     try {
-      const { senderId, receiverId, text, groupId } = messageData;
+      const { senderId, receiverId, text, groupId } = data;
       const newMessage = new Message({
         sender: senderId,
         text,
@@ -78,77 +77,58 @@ io.on('connection', (socket) => {
       if (groupId) {
         io.to(groupId).emit('receiveMessage', savedMessage);
       } else {
-        const receiverSocketId = onlineUsers.get(receiverId);
+        const receiverSocket = onlineUsers.get(receiverId);
         io.to(socket.id).emit('receiveMessage', savedMessage);
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit('receiveMessage', savedMessage);
-        }
+        if (receiverSocket) io.to(receiverSocket).emit('receiveMessage', savedMessage);
       }
-    } catch (error) {
-      console.error('Send message error:', error);
+    } catch (err) {
+      console.error('Send message error:', err);
     }
   });
 
-  // User is typing
+  // Typing
   socket.on('typing', ({ senderId, receiverId, groupId }) => {
-    if (groupId) {
-      socket.to(groupId).emit('userTyping', { userId: senderId, groupId });
-    } else {
-      const receiverSocketId = onlineUsers.get(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('userTyping', { userId: senderId });
-      }
+    if (groupId) socket.to(groupId).emit('userTyping', { userId: senderId, groupId });
+    else {
+      const receiverSocket = onlineUsers.get(receiverId);
+      if (receiverSocket) io.to(receiverSocket).emit('userTyping', { userId: senderId });
     }
   });
 
-  // User stops typing
   socket.on('stopTyping', ({ senderId, receiverId, groupId }) => {
-    if (groupId) {
-      socket.to(groupId).emit('userStopTyping', { userId: senderId, groupId });
-    } else {
-      const receiverSocketId = onlineUsers.get(receiverId);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('userStopTyping', { userId: senderId });
-      }
+    if (groupId) socket.to(groupId).emit('userStopTyping', { userId: senderId, groupId });
+    else {
+      const receiverSocket = onlineUsers.get(receiverId);
+      if (receiverSocket) io.to(receiverSocket).emit('userStopTyping', { userId: senderId });
     }
   });
 
-  // User joins a group chat
-  socket.on('joinGroup', ({ groupId }) => {
-    socket.join(groupId);
-    console.log(`User joined group: ${groupId}`);
-  });
+  // Group join/leave
+  socket.on('joinGroup', ({ groupId }) => socket.join(groupId));
+  socket.on('leaveGroup', ({ groupId }) => socket.leave(groupId));
 
-  // User leaves a group chat
-  socket.on('leaveGroup', ({ groupId }) => {
-    socket.leave(groupId);
-    console.log(`User left group: ${groupId}`);
-  });
-
-  // User disconnects
+  // Disconnect
   socket.on('disconnect', async () => {
     try {
-      let userId = null;
-      for (const [key, value] of onlineUsers.entries()) {
-        if (value === socket.id) {
-          userId = key;
+      let disconnectedUserId = null;
+      for (const [userId, sockId] of onlineUsers.entries()) {
+        if (sockId === socket.id) {
+          disconnectedUserId = userId;
+          onlineUsers.delete(userId);
           break;
         }
       }
-      if (userId) {
-        onlineUsers.delete(userId);
-        await User.findByIdAndUpdate(userId, { isOnline: false });
-        io.emit('userStatus', { userId, status: false });
-        console.log('User disconnected:', userId);
+      if (disconnectedUserId) {
+        await User.findByIdAndUpdate(disconnectedUserId, { isOnline: false });
+        io.emit('onlineUsers', Array.from(onlineUsers.keys())); // send updated list
+        console.log('User disconnected:', disconnectedUserId);
       }
-    } catch (error) {
-      console.error('Disconnect error:', error);
+    } catch (err) {
+      console.error('Disconnect error:', err);
     }
   });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
