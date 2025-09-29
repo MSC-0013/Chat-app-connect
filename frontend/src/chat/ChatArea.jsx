@@ -229,7 +229,7 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
 
           {/* Profile Picture */}
           <img
-            src={selectedChat.picture || ProfilePicture}
+            src={selectedChat.profilePicture || ProfilePicture}
             alt={selectedChat.username || selectedChat.name}
             className="w-10 h-10 rounded-full border-2 border-gray-500 object-cover"
           />
@@ -318,8 +318,16 @@ const ChatArea = ({ selectedChat, openSidebar, openUserProfile }) => {
                     }`}
                   >
                     {selectedChat.isGroup && !isSender && (
-                      <div className="text-xs font-semibold text-gray-600 mb-1">
-                        {msg.sender.username || "User"}
+                      <div className="flex items-center gap-1 mb-1">
+                        <img
+                          src={msg.sender.profilePicture || ProfilePicture}
+                          alt={msg.sender.username || "User"}
+                          className="w-5 h-5 rounded-full object-cover"
+                        />
+
+                        <span className="text-xs font-semibold text-gray-600">
+                          {msg.sender.username || "User"}
+                        </span>
                       </div>
                     )}
 
