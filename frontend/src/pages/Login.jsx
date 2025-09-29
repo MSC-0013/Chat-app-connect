@@ -14,8 +14,16 @@ const Login = () => {
   const [fallback, setFallback] = useState(false);
 
   useEffect(() => {
+    // Check if fingerprint failed in this session
+    const fingerprintFailed = sessionStorage.getItem("fingerprintFailed");
+    if (fingerprintFailed) {
+      setFallback(true);
+      return;
+    }
+
     const fingerprintLogin = async () => {
       if (!window.PublicKeyCredential) {
+        sessionStorage.setItem("fingerprintFailed", "true");
         setFallback(true);
         return toast.warning("Fingerprint not supported. Use email/password.");
       }
@@ -36,6 +44,7 @@ const Login = () => {
       } catch (err) {
         console.error("Fingerprint login failed:", err);
         toast.warning("Fingerprint failed. Please login with email/password.");
+        sessionStorage.setItem("fingerprintFailed", "true");
         setFallback(true);
       }
     };
