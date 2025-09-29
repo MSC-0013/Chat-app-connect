@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // REGISTER
   const register = async (userData) => {
     setLoading(true);
     try {
@@ -41,6 +42,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // LOGIN
   const login = async (credentials) => {
     setLoading(true);
     try {
@@ -64,6 +66,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // LOGOUT
   const logout = async () => {
     try {
       if (currentUser) {
@@ -85,6 +88,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // UPDATE PROFILE
   const updateProfile = async (userData) => {
     setLoading(true);
     try {
@@ -120,6 +124,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // GET FINGERPRINT USER
+  const getFingerprintUser = async (credential) => {
+    try {
+      const res = await fetch(`${API_URL}/auth/get-fingerprint-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          credentialId: Array.from(new Uint8Array(credential.rawId)),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.email) return null;
+      return data.email;
+    } catch (err) {
+      console.error("Error fetching fingerprint user:", err);
+      return null;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -130,6 +154,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         updateProfile,
+        getFingerprintUser, // ✅ fingerprint support
       }}
     >
       {children}
@@ -137,6 +162,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// CUSTOM HOOK
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
