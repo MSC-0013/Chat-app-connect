@@ -1,9 +1,9 @@
 import { createContext, useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { openDB } from "idb";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -11,10 +11,41 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  // 🔹 IndexedDB init
+  const initDB = async () =>
+    openDB("AuthDB", 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains("credentials")) {
+          db.createObjectStore("credentials", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("fingerprints")) {
+          db.createObjectStore("fingerprints", { keyPath: "userId" });
+        }
+      },
+    });
+
+  // 🔹 Save user
+  const saveUser = async (user) => {
+    localStorage.setItem("user", JSON.stringify(user));
+    const db = await initDB();
+    await db.put("credentials", { id: "user", ...user });
+  };
+
+  // 🔹 Load user
+  const loadUser = async () => {
+    const db = await initDB();
+    const cred = await db.get("credentials", "user");
+    if (cred) return cred;
     const storedUser = localStorage.getItem("user");
-    if (storedUser) setCurrentUser(JSON.parse(storedUser));
-    setLoading(false);
+    return storedUser ? JSON.parse(storedUser) : null;
+  };
+
+  useEffect(() => {
+    (async () => {
+      const user = await loadUser();
+      if (user) setCurrentUser(user);
+      setLoading(false);
+    })();
   }, []);
 
   // REGISTER
@@ -29,7 +60,7 @@ export const AuthProvider = ({ children }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Registration failed");
 
-      localStorage.setItem("user", JSON.stringify(data));
+      await saveUser(data);
       setCurrentUser(data);
       toast.success("Registration successful!");
       navigate("/chat");
@@ -54,7 +85,7 @@ export const AuthProvider = ({ children }) => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Login failed");
 
-      localStorage.setItem("user", JSON.stringify(data));
+      await saveUser(data);
       setCurrentUser(data);
       toast.success("Login successful!");
       return data;
@@ -68,86 +99,16 @@ export const AuthProvider = ({ children }) => {
 
   // LOGOUT
   const logout = async () => {
-    try {
-      if (currentUser) {
-        await fetch(`${API_URL}/auth/logout`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${currentUser.token}`,
-          },
-          body: JSON.stringify({ userId: currentUser._id }),
-        });
-      }
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      localStorage.removeItem("user");
-      setCurrentUser(null);
-      navigate("/login");
-    }
+    localStorage.removeItem("user");
+    const db = await initDB();
+    await db.clear("credentials");
+    setCurrentUser(null);
+    navigate("/login");
   };
 
-  // UPDATE PROFILE
-  const updateProfile = async (userData) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/users/${currentUser._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${currentUser.token}`,
-        },
-        body: JSON.stringify(userData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Update failed");
-
-      const updatedUser = {
-        ...currentUser,
-        username: data.user?.username ?? currentUser.username,
-        bio: data.user?.bio ?? currentUser.bio,
-        email: data.user?.email ?? currentUser.email,
-        token: currentUser.token,
-        _id: currentUser._id,
-      };
-
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-      setCurrentUser(updatedUser);
-      toast.success("Profile updated successfully!");
-      return data;
-    } catch (error) {
-      toast.error(error.message || "Update failed");
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // GET FINGERPRINT USER
-  const getFingerprintUser = async (credential) => {
-    try {
-      const res = await fetch(`${API_URL}/auth/get-fingerprint-user`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          credentialId: Array.from(new Uint8Array(credential.rawId)),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.email) return null;
-      return data.email;
-    } catch (err) {
-      console.error("Error fetching fingerprint user:", err);
-      return null;
-    }
-  };
-
-  // REGISTER FINGERPRINT AFTER EMAIL/PASSWORD LOGIN
-  const registerFingerprint = async (user) => {
+  // 🔹 Save fingerprint locally
+  const saveFingerprint = async (user) => {
     if (!window.PublicKeyCredential) return;
-
     try {
       const credential = await navigator.credentials.create({
         publicKey: {
@@ -159,24 +120,49 @@ export const AuthProvider = ({ children }) => {
             displayName: user.username,
           },
           pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-          authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+          },
           timeout: 60000,
         },
       });
 
-      // send credential.rawId to backend
-      await fetch(`${API_URL}/auth/save-credential`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user._id,
-          credentialId: Array.from(new Uint8Array(credential.rawId)),
-        }),
-      });
+      const rawId = Array.from(new Uint8Array(credential.rawId));
 
-      toast.success("Fingerprint registered successfully!");
+      // Save in both
+      localStorage.setItem("fingerprintUser", JSON.stringify({ userId: user._id, rawId }));
+      const db = await initDB();
+      await db.put("fingerprints", { userId: user._id, rawId });
+
+      toast.success("Fingerprint stored locally!");
     } catch (err) {
-      console.error("Fingerprint registration failed:", err);
+      console.error("Fingerprint save failed:", err);
+    }
+  };
+
+  // 🔹 Get fingerprint user
+  const getFingerprintUser = async () => {
+    const db = await initDB();
+    let saved = await db.get("fingerprints", currentUser?._id);
+    if (!saved) {
+      const local = localStorage.getItem("fingerprintUser");
+      saved = local ? JSON.parse(local) : null;
+    }
+    if (!saved) return null;
+
+    try {
+      await navigator.credentials.get({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          allowCredentials: [{ id: new Uint8Array(saved.rawId).buffer, type: "public-key" }],
+          userVerification: "required",
+        },
+      });
+      return saved.userId;
+    } catch (err) {
+      console.error("Fingerprint login failed:", err);
+      return null;
     }
   };
 
@@ -189,9 +175,8 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         logout,
-        updateProfile,
+        saveFingerprint,
         getFingerprintUser,
-        registerFingerprint,
       }}
     >
       {children}

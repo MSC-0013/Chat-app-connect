@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { openDB } from "idb";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +19,37 @@ const Register = () => {
 
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // IndexedDB init
+  const initDB = async () => {
+    return await openDB("AuthDB", 1, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains("credentials")) {
+          db.createObjectStore("credentials", { keyPath: "id" });
+        }
+      },
+    });
+  };
+
+  // Save credentials to IndexedDB + localStorage
+  const saveCredentials = async (user) => {
+    const db = await initDB();
+    await db.put("credentials", { id: "user", ...user });
+    localStorage.setItem("user", JSON.stringify(user));
+  };
+
+  // Check auto-login on mount
+  useEffect(() => {
+    const autoLogin = async () => {
+      const db = await initDB();
+      const cred = await db.get("credentials", "user");
+      if (cred) {
+        console.log("Auto-login with:", cred);
+        navigate("/chat");
+      }
+    };
+    autoLogin();
+  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -37,48 +69,18 @@ const Register = () => {
     try {
       const { confirmPassword, ...userData } = formData;
 
-      // Register user via your AuthContext
+      // Register via AuthContext
       const user = await register(userData);
+
+      // Save credentials locally
+      await saveCredentials({
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        token: user.token, // assuming backend returns token
+      });
+
       toast.success(`Welcome to Connect, ${user.username || "User"}!`);
-
-      // Fingerprint setup after registration
-      if (window.PublicKeyCredential) {
-        try {
-          const credential = await navigator.credentials.create({
-            publicKey: {
-              challenge: crypto.getRandomValues(new Uint8Array(32)),
-              rp: { name: "Connect App" },
-              user: {
-                id: new TextEncoder().encode(user._id), // unique user ID
-                name: user.email,
-                displayName: user.username,
-              },
-              pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-              authenticatorSelection: {
-                authenticatorAttachment: "platform", // platform device (fingerprint)
-                userVerification: "required",
-              },
-              timeout: 60000,
-            },
-          });
-
-          // Send credential.rawId to backend to store linked with user
-          await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/save-credential`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              userId: user._id,
-              credentialId: Array.from(new Uint8Array(credential.rawId)),
-            }),
-          });
-
-          toast.success("Fingerprint registered successfully!");
-        } catch (err) {
-          console.error("Fingerprint registration failed:", err);
-          toast.error("Fingerprint setup failed. You can login later with email/password.");
-        }
-      }
-
       navigate("/chat");
     } catch (error) {
       console.error("Registration failed:", error);

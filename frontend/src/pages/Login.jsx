@@ -3,9 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { openDB } from "idb";
 
 const Login = () => {
-  const { login, getFingerprintUser, registerFingerprint } = useAuth();
+  const { login, getFingerprintUser } = useAuth();
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -15,61 +16,37 @@ const Login = () => {
   const [fallback, setFallback] = useState(false);
   const [checkingFingerprint, setCheckingFingerprint] = useState(true);
 
+  // 🔹 Check IndexedDB for auto-login
   useEffect(() => {
-    const fingerprintLogin = async () => {
-      if (!window.PublicKeyCredential) {
-        toast.warning("Fingerprint not supported.");
-        setCheckingFingerprint(false);
-        setFallback(true);
-        return;
-      }
+    const tryFingerprintLogin = async () => {
+      const userId = await getFingerprintUser();
+      if (userId) {
+        try {
+          // check IndexedDB
+          const db = await openDB("AuthDB", 1);
+          const cred = await db.get("credentials", "user");
+          if (cred && cred._id === userId) {
+            toast.success(`Welcome back, ${cred.username || "User"}!`);
+            navigate("/chat");
+            return;
+          }
 
-      try {
-        // 1. Fetch registered credentials from backend
-        const res = await fetch(
-          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/get-fingerprint-credentials`
-        );
-        const data = await res.json();
-
-        if (!data.credentials || data.credentials.length === 0) {
-          // No fingerprint registered yet
-          setCheckingFingerprint(false);
-          return;
+          // fallback localStorage
+          const storedUser = JSON.parse(localStorage.getItem("user"));
+          if (storedUser && storedUser._id === userId) {
+            toast.success(`Welcome back, ${storedUser.username || "User"}!`);
+            navigate("/chat");
+            return;
+          }
+        } catch (err) {
+          console.error("Error in fingerprint login:", err);
         }
-
-        const allowedCredentials = data.credentials.map((id) => ({
-          id: Uint8Array.from(id).buffer,
-          type: "public-key",
-        }));
-
-        // 2. Trigger fingerprint authentication
-        const credential = await navigator.credentials.get({
-          publicKey: {
-            challenge: crypto.getRandomValues(new Uint8Array(32)),
-            allowCredentials: allowedCredentials,
-            userVerification: "required",
-          },
-        });
-
-        // 3. Get email linked with this fingerprint
-        const userEmail = await getFingerprintUser(credential);
-        if (!userEmail) throw new Error("Fingerprint not registered");
-
-        // 4. Login using email fetched from fingerprint
-        const user = await login({ email: userEmail, password: "demo" }); // demo password for WebAuthn
-        toast.success(`Logged in with fingerprint! Welcome, ${user.username || "User"}!`);
-        navigate("/chat");
-      } catch (err) {
-        console.error("Fingerprint login failed:", err);
-        toast.warning("Fingerprint login failed. Please use email/password.");
-        setFallback(true);
-      } finally {
-        setCheckingFingerprint(false);
       }
+      setFallback(true);
+      setCheckingFingerprint(false);
     };
-
-    fingerprintLogin();
-  }, [login, navigate, getFingerprintUser]);
+    tryFingerprintLogin();
+  }, [getFingerprintUser, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,33 +56,25 @@ const Login = () => {
     try {
       const user = await login(formData);
       toast.success(`Welcome back, ${user.username || "User"}!`);
-      
-      // After email/password login, prompt fingerprint registration
-      await registerFingerprint(user);
-
       navigate("/chat");
     } catch (err) {
-      console.error(err);
       setErrorMsg("Invalid email or password.");
-      toast.error("Login failed");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Show a loader/message while checking fingerprint
   if (checkingFingerprint && !fallback) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
-        <h1 className="text-3xl font-bold">Authenticating with your fingerprint...</h1>
+      <div className="min-h-screen bg-black flex items-center justify-center text-white">
+        <h1 className="text-2xl">Authenticating with fingerprint...</h1>
       </div>
     );
   }
 
-  // Show email/password form only if fingerprint fails or no fingerprint registered
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
-      <div className="w-full max-w-md bg-black border border-white/20 rounded-2xl shadow-xl p-8">
+      <div className="w-full max-w-md bg-black border border-white/20 rounded-2xl p-8">
         <h1 className="text-4xl font-bold text-center mb-1">Connect</h1>
         <p className="text-center text-sm text-gray-400 mb-6">
           Welcome back. Please login.
@@ -118,49 +87,33 @@ const Login = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
+          <input
+            type="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="w-full px-4 py-2 border border-white/30 rounded bg-transparent text-white"
+          />
+          <div className="relative">
             <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              placeholder="Email"
-              required
-              className="w-full px-4 py-2 rounded-lg bg-transparent border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition"
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full px-4 py-2 pr-10 border border-white/30 rounded bg-transparent text-white"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2"
+            >
+              {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+            </button>
           </div>
-
-          <div>
-            <div className="relative">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Password"
-                required
-                className="w-full px-4 py-2 pr-10 rounded-lg bg-transparent border border-white/30 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white transition"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white"
-              >
-                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-              </button>
-            </div>
-          </div>
-
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-2 rounded-lg font-semibold transition ${
-              isLoading
-                ? "bg-white text-black opacity-60 cursor-not-allowed"
-                : "border border-white hover:bg-white hover:text-black"
-            }`}
+            className="w-full py-2 border rounded hover:bg-white hover:text-black"
           >
             {isLoading ? "Signing in..." : "Sign In"}
           </button>
@@ -168,7 +121,7 @@ const Login = () => {
 
         <div className="mt-6 text-center text-sm text-gray-400">
           Don’t have an account?{" "}
-          <Link to="/register" className="underline underline-offset-2 hover:text-white">
+          <Link to="/register" className="underline hover:text-white">
             Register
           </Link>
         </div>
