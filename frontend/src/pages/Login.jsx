@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 const Login = () => {
-  const { login, getFingerprintUser } = useAuth(); 
+  const { login, getFingerprintUser, registerFingerprint } = useAuth();
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -13,49 +13,58 @@ const Login = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [fallback, setFallback] = useState(false);
+  const [checkingFingerprint, setCheckingFingerprint] = useState(true);
 
   useEffect(() => {
     const fingerprintLogin = async () => {
       if (!window.PublicKeyCredential) {
-        toast.warning("Fingerprint not supported. Using email/password.");
+        toast.warning("Fingerprint not supported.");
+        setCheckingFingerprint(false);
         setFallback(true);
         return;
       }
 
       try {
         // 1. Fetch registered credentials from backend
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/get-fingerprint-credentials`);
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/get-fingerprint-credentials`
+        );
         const data = await res.json();
-        const allowedCredentials = data.credentials.map(id => ({
+
+        if (!data.credentials || data.credentials.length === 0) {
+          // No fingerprint registered yet
+          setCheckingFingerprint(false);
+          return;
+        }
+
+        const allowedCredentials = data.credentials.map((id) => ({
           id: Uint8Array.from(id).buffer,
           type: "public-key",
         }));
 
-        if (!allowedCredentials.length) {
-          throw new Error("No registered passkeys found");
-        }
-
-        // 2. Prompt fingerprint login
+        // 2. Trigger fingerprint authentication
         const credential = await navigator.credentials.get({
           publicKey: {
-            challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]), // backend challenge recommended
+            challenge: crypto.getRandomValues(new Uint8Array(32)),
             allowCredentials: allowedCredentials,
             userVerification: "required",
           },
         });
 
-        // 3. Get email linked to this fingerprint from backend
+        // 3. Get email linked with this fingerprint
         const userEmail = await getFingerprintUser(credential);
         if (!userEmail) throw new Error("Fingerprint not registered");
 
-        // 4. Login with demo password or backend WebAuthn validation
-        const user = await login({ email: userEmail, password: "demo" });
+        // 4. Login using email fetched from fingerprint
+        const user = await login({ email: userEmail, password: "demo" }); // demo password for WebAuthn
         toast.success(`Logged in with fingerprint! Welcome, ${user.username || "User"}!`);
         navigate("/chat");
       } catch (err) {
         console.error("Fingerprint login failed:", err);
-        toast.warning("Fingerprint login failed. Please login with email/password.");
-        setFallback(true); // fallback to email/password
+        toast.warning("Fingerprint login failed. Please use email/password.");
+        setFallback(true);
+      } finally {
+        setCheckingFingerprint(false);
       }
     };
 
@@ -70,6 +79,10 @@ const Login = () => {
     try {
       const user = await login(formData);
       toast.success(`Welcome back, ${user.username || "User"}!`);
+      
+      // After email/password login, prompt fingerprint registration
+      await registerFingerprint(user);
+
       navigate("/chat");
     } catch (err) {
       console.error(err);
@@ -80,14 +93,16 @@ const Login = () => {
     }
   };
 
-  if (!fallback) {
+  // Show a loader/message while checking fingerprint
+  if (checkingFingerprint && !fallback) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
-        <h1 className="text-3xl font-bold">Authenticate with your fingerprint</h1>
+        <h1 className="text-3xl font-bold">Authenticating with your fingerprint...</h1>
       </div>
     );
   }
 
+  // Show email/password form only if fingerprint fails or no fingerprint registered
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
       <div className="w-full max-w-md bg-black border border-white/20 rounded-2xl shadow-xl p-8">

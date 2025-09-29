@@ -144,6 +144,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // REGISTER FINGERPRINT AFTER EMAIL/PASSWORD LOGIN
+  const registerFingerprint = async (user) => {
+    if (!window.PublicKeyCredential) return;
+
+    try {
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge: crypto.getRandomValues(new Uint8Array(32)),
+          rp: { name: "Connect App" },
+          user: {
+            id: new TextEncoder().encode(user._id),
+            name: user.email,
+            displayName: user.username,
+          },
+          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+          authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+          timeout: 60000,
+        },
+      });
+
+      // send credential.rawId to backend
+      await fetch(`${API_URL}/auth/save-credential`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user._id,
+          credentialId: Array.from(new Uint8Array(credential.rawId)),
+        }),
+      });
+
+      toast.success("Fingerprint registered successfully!");
+    } catch (err) {
+      console.error("Fingerprint registration failed:", err);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -154,7 +190,8 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         updateProfile,
-        getFingerprintUser, 
+        getFingerprintUser,
+        registerFingerprint,
       }}
     >
       {children}
@@ -162,7 +199,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// CUSTOM HOOK
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
