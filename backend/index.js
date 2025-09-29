@@ -33,8 +33,8 @@ connectDB();
 const io = socketIo(server, {
   cors: {
     origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    methods: ['GET', 'POST']
-  }
+    methods: ['GET', 'POST'],
+  },
 });
 
 // API Routes
@@ -50,12 +50,15 @@ const onlineUsers = new Map();
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
 
+  // Send current online users to this socket immediately
+  socket.emit('onlineUsers', Array.from(onlineUsers.keys()));
+
   // User joins
   socket.on('join', async ({ userId }) => {
     try {
       onlineUsers.set(userId, socket.id);
       await User.findByIdAndUpdate(userId, { isOnline: true });
-      io.emit('onlineUsers', Array.from(onlineUsers.keys())); // send full list
+      io.emit('onlineUsers', Array.from(onlineUsers.keys())); // broadcast updated list
       console.log('User joined:', userId);
     } catch (err) {
       console.error('Join error:', err);
@@ -63,14 +66,13 @@ io.on('connection', (socket) => {
   });
 
   // Send message
-  socket.on('sendMessage', async (data) => {
+  socket.on('sendMessage', async ({ senderId, receiverId, text, groupId }) => {
     try {
-      const { senderId, receiverId, text, groupId } = data;
       const newMessage = new Message({
         sender: senderId,
         text,
         ...(groupId ? { group: groupId } : { receiver: receiverId }),
-        createdAt: new Date()
+        createdAt: new Date(),
       });
       const savedMessage = await newMessage.save();
 

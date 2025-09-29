@@ -16,9 +16,9 @@ export const SocketProvider = ({ children }) => {
   const { currentUser } = useAuth();
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?._id) {
       const newSocket = io(SOCKET_URL, {
-        transports: ['websocket'], // ensures WebSocket is used
+        transports: ['websocket'], // use websocket
         forceNew: true,
       });
       setSocket(newSocket);
@@ -28,11 +28,16 @@ export const SocketProvider = ({ children }) => {
   }, [currentUser]);
 
   useEffect(() => {
-    if (socket && currentUser) {
+    if (socket && currentUser?._id) {
       socket.emit('join', { userId: currentUser._id });
 
-      socket.on('onlineUsers', (users) => setOnlineUsers(users));
+      // Receive full online users list
+      socket.on('onlineUsers', (users) => {
+        console.log('Online users received:', users);
+        setOnlineUsers(users);
+      });
 
+      // Typing events
       socket.on('userTyping', ({ userId, groupId }) => {
         setTypingUsers(prev => ({ ...prev, [groupId ? `group-${groupId}` : userId]: true }));
       });
@@ -52,7 +57,7 @@ export const SocketProvider = ({ children }) => {
     }
   }, [socket, currentUser]);
 
-  const sendMessage = (messageData) => socket?.emit('sendMessage', messageData);
+  const sendMessage = (data) => socket?.emit('sendMessage', data);
   const sendTyping = (data) => socket?.emit('typing', data);
   const sendStopTyping = (data) => socket?.emit('stopTyping', data);
   const joinGroup = (groupId) => socket?.emit('joinGroup', { groupId });
