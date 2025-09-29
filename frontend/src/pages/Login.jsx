@@ -5,44 +5,57 @@ import { toast } from "sonner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 const Login = () => {
-  const { login, getFingerprintUser } = useAuth(); // getFingerprintUser fetches email linked to fingerprint
+  const { login, getFingerprintUser } = useAuth(); 
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [fallback, setFallback] = useState(false); // fallback to email/password only after failed fingerprint
+  const [fallback, setFallback] = useState(false);
 
   useEffect(() => {
     const fingerprintLogin = async () => {
       if (!window.PublicKeyCredential) {
-        toast.warning("Fingerprint not supported. Using email/password fallback.");
+        toast.warning("Fingerprint not supported. Using email/password.");
         setFallback(true);
         return;
       }
 
       try {
-        // Force fingerprint prompt
+        // 1. Fetch registered credentials from backend
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/get-fingerprint-credentials`);
+        const data = await res.json();
+        const allowedCredentials = data.credentials.map(id => ({
+          id: Uint8Array.from(id).buffer,
+          type: "public-key",
+        }));
+
+        if (!allowedCredentials.length) {
+          throw new Error("No registered passkeys found");
+        }
+
+        // 2. Prompt fingerprint login
         const credential = await navigator.credentials.get({
           publicKey: {
-            challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]),
-            allowCredentials: [], // backend should send allowed credentials
+            challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]), // backend challenge recommended
+            allowCredentials: allowedCredentials,
             userVerification: "required",
           },
         });
 
-        // Get email linked with fingerprint from backend
+        // 3. Get email linked to this fingerprint from backend
         const userEmail = await getFingerprintUser(credential);
         if (!userEmail) throw new Error("Fingerprint not registered");
 
-        const user = await login({ email: userEmail, password: "demo" }); // demo password, backend verifies WebAuthn
+        // 4. Login with demo password or backend WebAuthn validation
+        const user = await login({ email: userEmail, password: "demo" });
         toast.success(`Logged in with fingerprint! Welcome, ${user.username || "User"}!`);
         navigate("/chat");
       } catch (err) {
         console.error("Fingerprint login failed:", err);
-        toast.warning("Fingerprint failed. Please login with email/password.");
-        setFallback(true); // fallback after actual failure
+        toast.warning("Fingerprint login failed. Please login with email/password.");
+        setFallback(true); // fallback to email/password
       }
     };
 
@@ -67,7 +80,6 @@ const Login = () => {
     }
   };
 
-  // Show email/password form only if fingerprint failed
   if (!fallback) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">

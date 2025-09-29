@@ -154,7 +154,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         updateProfile,
-        getFingerprintUser, // ✅ fingerprint support
+        getFingerprintUser, 
       }}
     >
       {children}
