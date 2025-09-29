@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import { openDB } from "idb";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,43 +12,12 @@ const Register = () => {
     confirmPassword: "",
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const { register } = useAuth();
   const navigate = useNavigate();
-
-  // IndexedDB init
-  const initDB = async () => {
-    return await openDB("AuthDB", 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains("credentials")) {
-          db.createObjectStore("credentials", { keyPath: "id" });
-        }
-      },
-    });
-  };
-
-  // Save credentials to IndexedDB + localStorage
-  const saveCredentials = async (user) => {
-    const db = await initDB();
-    await db.put("credentials", { id: "user", ...user });
-    localStorage.setItem("user", JSON.stringify(user));
-  };
-
-  // Check auto-login on mount
-  useEffect(() => {
-    const autoLogin = async () => {
-      const db = await initDB();
-      const cred = await db.get("credentials", "user");
-      if (cred) {
-        console.log("Auto-login with:", cred);
-        navigate("/chat");
-      }
-    };
-    autoLogin();
-  }, [navigate]);
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -68,23 +36,9 @@ const Register = () => {
     setIsLoading(true);
     try {
       const { confirmPassword, ...userData } = formData;
-
-      // Register via AuthContext
-      const user = await register(userData);
-
-      // Save credentials locally
-      await saveCredentials({
-        _id: user._id,
-        email: user.email,
-        username: user.username,
-        token: user.token, // assuming backend returns token
-      });
-
-      toast.success(`Welcome to Connect, ${user.username || "User"}!`);
-      navigate("/chat");
+      await register(userData); // AuthContext handles IndexedDB, localStorage, backend
     } catch (error) {
-      console.error("Registration failed:", error);
-      setErrorMsg(error.message || "Registration failed. Try again.");
+      setErrorMsg(error.message || "Registration failed.");
       toast.error("Registration failed.");
     } finally {
       setIsLoading(false);
@@ -106,74 +60,60 @@ const Register = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
+          <input
+            name="username"
+            value={formData.username}
+            onChange={handleChange}
+            required
+            placeholder="Username"
+            className="w-full px-4 py-2 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
+          />
+          <input
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            placeholder="Email"
+            className="w-full px-4 py-2 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
+          />
+
+          <div className="relative">
             <input
-              id="username"
-              name="username"
-              type="text"
-              value={formData.username}
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={formData.password}
               onChange={handleChange}
               required
-              placeholder="Username"
-              className="w-full px-4 py-2 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
+              placeholder="Password"
+              className="w-full px-4 py-2 pr-10 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
+            >
+              {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+            </button>
           </div>
 
-          <div>
+          <div className="relative">
             <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
+              name="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              value={formData.confirmPassword}
               onChange={handleChange}
               required
-              placeholder="Email ID"
-              className="w-full px-4 py-2 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
+              placeholder="Confirm Password"
+              className="w-full px-4 py-2 pr-10 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
             />
-          </div>
-
-          <div>
-            <div className="relative">
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={formData.password}
-                onChange={handleChange}
-                required
-                placeholder="Password"
-                className="w-full px-4 py-2 pr-10 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
-              >
-                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <div className="relative">
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                placeholder="Confirm Password"
-                className="w-full px-4 py-2 pr-10 bg-transparent border border-white/30 rounded text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white"
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
-              >
-                {showConfirmPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white"
+            >
+              {showConfirmPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+            </button>
           </div>
 
           <button

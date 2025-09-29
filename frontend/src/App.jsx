@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./pages/ProtectedRoute";
 
 // Pages
@@ -11,13 +11,22 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// 🔹 AutoRedirect component for root
+const AutoRedirect = () => {
+  const { currentUser, loading } = useAuth();
+
+  if (loading) return null; // or a loader
+
+  return currentUser ? <Navigate to="/chat" replace /> : <Navigate to="/login" replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* 👇 Default route goes to login */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* 👇 Default route checks login status */}
+          <Route path="/" element={<AutoRedirect />} />
 
           {/* 👇 Login & Register always accessible */}
           <Route path="/login" element={<Login />} />

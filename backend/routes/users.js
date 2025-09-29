@@ -2,6 +2,12 @@ const router = require("express").Router();
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const verifyToken = require("../middleware/verifyToken");
+const cloudinary = require("../utils/cloudinary");
+const multer = require("multer");
+
+// Multer setup (memory storage)
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // 🔍 Search users
 router.get("/search/:username", verifyToken, async (req, res) => {
@@ -19,16 +25,14 @@ router.get("/search/:username", verifyToken, async (req, res) => {
 // 👥 Add contact
 router.put("/contacts/add/:id", verifyToken, async (req, res) => {
   try {
-    if (req.userId === req.params.id) {
+    if (req.userId === req.params.id)
       return res.status(400).json({ message: "You cannot add yourself as a contact" });
-    }
 
     const currentUser = await User.findById(req.userId);
     if (!currentUser) return res.status(404).json({ message: "User not found" });
 
-    if (currentUser.contacts.includes(req.params.id)) {
+    if (currentUser.contacts.includes(req.params.id))
       return res.status(400).json({ message: "User already in contacts" });
-    }
 
     await User.findByIdAndUpdate(req.userId, { $push: { contacts: req.params.id } });
     await User.findByIdAndUpdate(req.params.id, { $push: { contacts: req.userId } });
@@ -60,21 +64,30 @@ router.get("/:id", verifyToken, async (req, res) => {
   }
 });
 
-// ✏️ Update profile (bio + username only)
-router.put("/:id", verifyToken, async (req, res) => {
-  if (req.params.id !== req.userId) {
+// ✏️ Update profile (bio + username + profile picture)
+router.put("/:id", verifyToken, upload.single("profilePicture"), async (req, res) => {
+  if (req.params.id !== req.userId)
     return res.status(403).json({ message: "You can only update your own profile" });
-  }
 
   try {
-    if (req.body.password) {
-      const salt = await bcrypt.genSalt(10);
-      req.body.password = await bcrypt.hash(req.body.password, salt);
-    }
-
     const allowedFields = {};
     if (req.body.username) allowedFields.username = req.body.username;
     if (req.body.bio) allowedFields.bio = req.body.bio;
+
+    // Upload image to Cloudinary if file is provided
+    if (req.file) {
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder: "profile_pictures" },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+      allowedFields.profilePicture = result.secure_url;
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,

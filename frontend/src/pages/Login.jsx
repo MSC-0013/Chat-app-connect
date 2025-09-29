@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
@@ -6,47 +6,13 @@ import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { openDB } from "idb";
 
 const Login = () => {
-  const { login, getFingerprintUser } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [fallback, setFallback] = useState(false);
-  const [checkingFingerprint, setCheckingFingerprint] = useState(true);
-
-  // 🔹 Check IndexedDB for auto-login
-  useEffect(() => {
-    const tryFingerprintLogin = async () => {
-      const userId = await getFingerprintUser();
-      if (userId) {
-        try {
-          // check IndexedDB
-          const db = await openDB("AuthDB", 1);
-          const cred = await db.get("credentials", "user");
-          if (cred && cred._id === userId) {
-            toast.success(`Welcome back, ${cred.username || "User"}!`);
-            navigate("/chat");
-            return;
-          }
-
-          // fallback localStorage
-          const storedUser = JSON.parse(localStorage.getItem("user"));
-          if (storedUser && storedUser._id === userId) {
-            toast.success(`Welcome back, ${storedUser.username || "User"}!`);
-            navigate("/chat");
-            return;
-          }
-        } catch (err) {
-          console.error("Error in fingerprint login:", err);
-        }
-      }
-      setFallback(true);
-      setCheckingFingerprint(false);
-    };
-    tryFingerprintLogin();
-  }, [getFingerprintUser, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,14 +29,6 @@ const Login = () => {
       setIsLoading(false);
     }
   };
-
-  if (checkingFingerprint && !fallback) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-white">
-        <h1 className="text-2xl">Authenticating with fingerprint...</h1>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
@@ -91,7 +49,9 @@ const Login = () => {
             type="email"
             placeholder="Email"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, email: e.target.value })
+            }
             className="w-full px-4 py-2 border border-white/30 rounded bg-transparent text-white"
           />
           <div className="relative">
@@ -99,7 +59,9 @@ const Login = () => {
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
               className="w-full px-4 py-2 pr-10 border border-white/30 rounded bg-transparent text-white"
             />
             <button

@@ -11,27 +11,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // 🔹 IndexedDB init
+  // IndexedDB init
   const initDB = async () =>
     openDB("AuthDB", 1, {
       upgrade(db) {
         if (!db.objectStoreNames.contains("credentials")) {
           db.createObjectStore("credentials", { keyPath: "id" });
         }
-        if (!db.objectStoreNames.contains("fingerprints")) {
-          db.createObjectStore("fingerprints", { keyPath: "userId" });
-        }
       },
     });
 
-  // 🔹 Save user
+  // Save user to localStorage + IndexedDB
   const saveUser = async (user) => {
     localStorage.setItem("user", JSON.stringify(user));
     const db = await initDB();
     await db.put("credentials", { id: "user", ...user });
   };
 
-  // 🔹 Load user
+  // Load user from IndexedDB / localStorage
   const loadUser = async () => {
     const db = await initDB();
     const cred = await db.get("credentials", "user");
@@ -40,6 +37,7 @@ export const AuthProvider = ({ children }) => {
     return storedUser ? JSON.parse(storedUser) : null;
   };
 
+  // On mount, load user for auto-login
   useEffect(() => {
     (async () => {
       const user = await loadUser();
@@ -106,63 +104,23 @@ export const AuthProvider = ({ children }) => {
     navigate("/login");
   };
 
-  // 🔹 Save fingerprint locally
-  const saveFingerprint = async (user) => {
-    if (!window.PublicKeyCredential) return;
+  // UPDATE PROFILE (supports FormData for file upload)
+  const updateProfile = async (formData) => {
     try {
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge: crypto.getRandomValues(new Uint8Array(32)),
-          rp: { name: "Connect App" },
-          user: {
-            id: new TextEncoder().encode(user._id),
-            name: user.email,
-            displayName: user.username,
-          },
-          pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-          authenticatorSelection: {
-            authenticatorAttachment: "platform",
-            userVerification: "required",
-          },
-          timeout: 60000,
-        },
+      const res = await fetch(`${API_URL}/users/${currentUser._id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${currentUser.token}` },
+        body: formData, // FormData allows file upload
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Update failed");
 
-      const rawId = Array.from(new Uint8Array(credential.rawId));
-
-      // Save in both
-      localStorage.setItem("fingerprintUser", JSON.stringify({ userId: user._id, rawId }));
-      const db = await initDB();
-      await db.put("fingerprints", { userId: user._id, rawId });
-
-      toast.success("Fingerprint stored locally!");
+      setCurrentUser(data);
+      await saveUser(data);
+      return data;
     } catch (err) {
-      console.error("Fingerprint save failed:", err);
-    }
-  };
-
-  // 🔹 Get fingerprint user
-  const getFingerprintUser = async () => {
-    const db = await initDB();
-    let saved = await db.get("fingerprints", currentUser?._id);
-    if (!saved) {
-      const local = localStorage.getItem("fingerprintUser");
-      saved = local ? JSON.parse(local) : null;
-    }
-    if (!saved) return null;
-
-    try {
-      await navigator.credentials.get({
-        publicKey: {
-          challenge: crypto.getRandomValues(new Uint8Array(32)),
-          allowCredentials: [{ id: new Uint8Array(saved.rawId).buffer, type: "public-key" }],
-          userVerification: "required",
-        },
-      });
-      return saved.userId;
-    } catch (err) {
-      console.error("Fingerprint login failed:", err);
-      return null;
+      toast.error(err.message || "Profile update failed");
+      throw err;
     }
   };
 
@@ -175,8 +133,7 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         logout,
-        saveFingerprint,
-        getFingerprintUser,
+        updateProfile,
       }}
     >
       {children}

@@ -27,7 +27,6 @@ router.post("/register", async (req, res) => {
       email: req.body.email,
       password: hashedPassword,
       bio: req.body.bio || "",
-      fingerprintId: req.body.fingerprintId || null, // optional fingerprint
     });
 
     const user = await newUser.save();
@@ -52,34 +51,6 @@ router.post("/login", async (req, res) => {
     const validPassword = await bcrypt.compare(req.body.password, user.password);
     if (!validPassword)
       return res.status(400).json({ message: "Invalid password" });
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "secretkey", {
-      expiresIn: "24h",
-    });
-
-    user.isOnline = true;
-    user.lastSeen = Date.now();
-    await user.save();
-
-    const { password, ...userWithoutPassword } = user._doc;
-    res.status(200).json({ ...userWithoutPassword, token });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// 👇 New: Fingerprint login (no password required)
-router.post("/fingerprint-login", async (req, res) => {
-  try {
-    const { fingerprintId } = req.body;
-    if (!fingerprintId) {
-      return res.status(400).json({ message: "Fingerprint ID required" });
-    }
-
-    const user = await User.findOne({ fingerprintId });
-    if (!user) {
-      return res.status(404).json({ message: "Fingerprint not linked" });
-    }
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || "secretkey", {
       expiresIn: "24h",
