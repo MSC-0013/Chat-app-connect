@@ -37,27 +37,45 @@ const Register = () => {
     try {
       const { confirmPassword, ...userData } = formData;
 
+      // Register user via your AuthContext
       const user = await register(userData);
       toast.success(`Welcome to Connect, ${user.username || "User"}!`);
 
-      // Setup fingerprint (WebAuthn) after registration
+      // Fingerprint setup after registration
       if (window.PublicKeyCredential) {
         try {
-          await navigator.credentials.create({
+          const credential = await navigator.credentials.create({
             publicKey: {
-              challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]),
+              challenge: crypto.getRandomValues(new Uint8Array(32)),
               rp: { name: "Connect App" },
               user: {
-                id: new TextEncoder().encode(user._id),
+                id: new TextEncoder().encode(user._id), // unique user ID
                 name: user.email,
                 displayName: user.username,
               },
               pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+              authenticatorSelection: {
+                authenticatorAttachment: "platform", // platform device (fingerprint)
+                userVerification: "required",
+              },
+              timeout: 60000,
             },
           });
+
+          // Send credential.rawId to backend to store linked with user
+          await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/save-credential`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user._id,
+              credentialId: Array.from(new Uint8Array(credential.rawId)),
+            }),
+          });
+
           toast.success("Fingerprint registered successfully!");
-        } catch {
-          toast.error("Fingerprint setup failed.");
+        } catch (err) {
+          console.error("Fingerprint registration failed:", err);
+          toast.error("Fingerprint setup failed. You can login later with email/password.");
         }
       }
 

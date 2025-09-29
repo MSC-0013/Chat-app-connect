@@ -5,8 +5,9 @@ import { toast } from "sonner";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 const Login = () => {
-  const { login } = useAuth();
+  const { login, getFingerprintUser } = useAuth(); // getFingerprintUser fetches email linked to fingerprint
   const navigate = useNavigate();
+
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -14,8 +15,7 @@ const Login = () => {
   const [fallback, setFallback] = useState(false);
 
   useEffect(() => {
-    // Check if fingerprint failed in this session
-    const fingerprintFailed = sessionStorage.getItem("fingerprintFailed");
+    const fingerprintFailed = localStorage.getItem("fingerprintFailed");
     if (fingerprintFailed) {
       setFallback(true);
       return;
@@ -23,34 +23,37 @@ const Login = () => {
 
     const fingerprintLogin = async () => {
       if (!window.PublicKeyCredential) {
-        sessionStorage.setItem("fingerprintFailed", "true");
+        localStorage.setItem("fingerprintFailed", "true");
         setFallback(true);
         return toast.warning("Fingerprint not supported. Use email/password.");
       }
 
       try {
-        await navigator.credentials.get({
+        const credential = await navigator.credentials.get({
           publicKey: {
             challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]),
-            allowCredentials: [],
+            allowCredentials: [], // backend should send allowed credentials
+            userVerification: "required",
           },
         });
 
-        // Demo: Use stored demo email/password for fingerprint login
-        const userEmail = "mscx0013@shd";
-        const user = await login({ email: userEmail, password: "demo" });
+        // Get email linked with this fingerprint credential from backend
+        const userEmail = await getFingerprintUser(credential); 
+        if (!userEmail) throw new Error("Fingerprint not registered");
+
+        const user = await login({ email: userEmail, password: "demo" }); // demo password, backend should verify WebAuthn
         toast.success(`Logged in with fingerprint! Welcome, ${user.username || "User"}!`);
         navigate("/chat");
       } catch (err) {
         console.error("Fingerprint login failed:", err);
         toast.warning("Fingerprint failed. Please login with email/password.");
-        sessionStorage.setItem("fingerprintFailed", "true");
+        localStorage.setItem("fingerprintFailed", "true");
         setFallback(true);
       }
     };
 
     fingerprintLogin();
-  }, [login, navigate]);
+  }, [login, navigate, getFingerprintUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
