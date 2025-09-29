@@ -12,23 +12,18 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [fallback, setFallback] = useState(false);
+  const [fallback, setFallback] = useState(false); // fallback to email/password only after failed fingerprint
 
   useEffect(() => {
-    const fingerprintFailed = localStorage.getItem("fingerprintFailed");
-    if (fingerprintFailed) {
-      setFallback(true);
-      return;
-    }
-
     const fingerprintLogin = async () => {
       if (!window.PublicKeyCredential) {
-        localStorage.setItem("fingerprintFailed", "true");
+        toast.warning("Fingerprint not supported. Using email/password fallback.");
         setFallback(true);
-        return toast.warning("Fingerprint not supported. Use email/password.");
+        return;
       }
 
       try {
+        // Force fingerprint prompt
         const credential = await navigator.credentials.get({
           publicKey: {
             challenge: new Uint8Array([0x8C, 0x01, 0x7F, 0xAA, 0x44]),
@@ -37,18 +32,17 @@ const Login = () => {
           },
         });
 
-        // Get email linked with this fingerprint credential from backend
-        const userEmail = await getFingerprintUser(credential); 
+        // Get email linked with fingerprint from backend
+        const userEmail = await getFingerprintUser(credential);
         if (!userEmail) throw new Error("Fingerprint not registered");
 
-        const user = await login({ email: userEmail, password: "demo" }); // demo password, backend should verify WebAuthn
+        const user = await login({ email: userEmail, password: "demo" }); // demo password, backend verifies WebAuthn
         toast.success(`Logged in with fingerprint! Welcome, ${user.username || "User"}!`);
         navigate("/chat");
       } catch (err) {
         console.error("Fingerprint login failed:", err);
         toast.warning("Fingerprint failed. Please login with email/password.");
-        localStorage.setItem("fingerprintFailed", "true");
-        setFallback(true);
+        setFallback(true); // fallback after actual failure
       }
     };
 
@@ -73,6 +67,7 @@ const Login = () => {
     }
   };
 
+  // Show email/password form only if fingerprint failed
   if (!fallback) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center px-4 py-12 text-white">
